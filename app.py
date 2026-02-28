@@ -13,6 +13,8 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+
+
 # ══════════════════════════════════════════════
 #  전역 CSS
 # ══════════════════════════════════════════════
@@ -110,15 +112,27 @@ section[data-testid="stSidebar"] .stMultiSelect label {
     font-size: 17px; font-weight: 700; color: #0F172A; margin-bottom: 18px;
     padding-bottom: 12px; border-bottom: 2px solid #EFF6FF; letter-spacing: -0.01em;
 }
-.stTabs [data-baseweb="tab-list"] { gap: 8px; background: transparent; padding-bottom: 6px; }
-.stTabs [data-baseweb="tab"] {
-    background: white; border-radius: 10px; padding: 11px 26px;
-    font-size: 15px; font-weight: 600; color: #475569; border: 1.5px solid #CBD5E1;
+/* 기본 Streamlit 탭 숨김 → 커스텀 탭으로 대체 */
+.stTabs [data-baseweb="tab-list"] { display: none !important; }
+.stTabs [data-baseweb="tab-panel"] { padding-top: 0 !important; }
+
+/* ── 커스텀 드래그 탭 바 ── */
+.custom-tab-bar {
+    display: flex; gap: 8px; padding: 0 0 16px 0;
+    flex-wrap: nowrap; align-items: center; user-select: none;
 }
-.stTabs [aria-selected="true"] {
-    background: #1D4ED8 !important; color: white !important;
-    border-color: #1D4ED8 !important; box-shadow: 0 4px 12px rgba(29,78,216,0.3);
+.custom-tab {
+    display: flex; align-items: center; gap: 7px;
+    padding: 10px 22px; border-radius: 10px;
+    font-size: 15px; font-weight: 600; color: #475569;
+    background: white; border: 1.5px solid #CBD5E1;
+    cursor: grab; transition: all 0.15s; white-space: nowrap;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
 }
+.custom-tab:hover { border-color: #93C5FD; color: #1D4ED8; box-shadow: 0 3px 10px rgba(29,78,216,0.12); }
+.custom-tab.active { background: #1D4ED8 !important; color: white !important; border-color: #1D4ED8 !important; box-shadow: 0 4px 14px rgba(29,78,216,0.35); }
+.custom-tab.dragging { opacity: 0.4; cursor: grabbing; }
+.custom-tab.drag-over { border-color: #60A5FA !important; background: #EFF6FF !important; color: #1D4ED8 !important; transform: scale(1.05); }
 .report-box {
     background: linear-gradient(135deg, #EFF6FF 0%, #F0FDF4 100%);
     border-radius: 12px; padding: 22px 24px; border: 1px solid #BFDBFE;
@@ -291,8 +305,161 @@ with st.sidebar:
 
 
 # ══════════════════════════════════════════════
-#  탭
+#  드래그앤드롭 탭 구현
 # ══════════════════════════════════════════════
+import streamlit.components.v1 as components
+
+# Streamlit 기본 탭을 숨기고 커스텀 드래그 가능한 탭 바를 주입
+components.html("""
+<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background:transparent;">
+<script>
+(function () {
+    var RETRY = 0;
+
+    function applyActive(btn) {
+        btn._isActive = true;
+        btn.style.background   = '#1D4ED8';
+        btn.style.color        = 'white';
+        btn.style.borderColor  = '#1D4ED8';
+        btn.style.boxShadow    = '0 4px 14px rgba(29,78,216,0.35)';
+        btn.style.cursor       = 'grab';
+    }
+    function applyInactive(btn) {
+        btn._isActive = false;
+        btn.style.background   = 'white';
+        btn.style.color        = '#475569';
+        btn.style.borderColor  = '#CBD5E1';
+        btn.style.boxShadow    = '0 1px 4px rgba(0,0,0,0.06)';
+        btn.style.cursor       = 'grab';
+    }
+
+    function init() {
+        var doc = window.parent.document;
+
+        // 이미 삽입됐으면 스킵
+        if (doc.getElementById('__drag_tab_bar__')) return;
+
+        var tabList = doc.querySelector('[data-baseweb="tab-list"]');
+        if (!tabList) {
+            if (RETRY++ < 20) setTimeout(init, 300);
+            return;
+        }
+
+        var stTabs = Array.from(tabList.querySelectorAll('[role="tab"]'));
+        if (stTabs.length === 0) {
+            if (RETRY++ < 20) setTimeout(init, 300);
+            return;
+        }
+
+        // 원래 탭 목록 숨기기
+        tabList.style.display = 'none';
+
+        // ── 커스텀 탭 바 DOM 생성 ──
+        var bar = doc.createElement('div');
+        bar.id = '__drag_tab_bar__';
+        bar.style.cssText = 'display:flex;gap:8px;padding:0 0 14px 0;' +
+                            'align-items:center;user-select:none;flex-wrap:nowrap;';
+
+        var dragSrc = null;
+
+        stTabs.forEach(function (stTab, idx) {
+            var btn      = doc.createElement('div');
+            btn._tabIdx  = idx;         // 원래 Streamlit 탭 인덱스 고정
+            btn.draggable = true;
+            btn.textContent = stTab.textContent.trim();
+            btn.style.cssText =
+                'padding:10px 22px;border-radius:10px;font-size:15px;font-weight:600;' +
+                'border:1.5px solid #CBD5E1;transition:all 0.15s;white-space:nowrap;' +
+                "font-family:'Noto Sans KR',sans-serif;" +
+                'box-shadow:0 1px 4px rgba(0,0,0,0.06);';
+
+            if (stTab.getAttribute('aria-selected') === 'true') applyActive(btn);
+            else applyInactive(btn);
+
+            // ── 클릭: 원래 탭 트리거 ──
+            btn.addEventListener('click', function () {
+                Array.from(bar.children).forEach(applyInactive);
+                applyActive(btn);
+                stTabs[btn._tabIdx].click();
+            });
+
+            // ── 드래그 이벤트 ──
+            btn.addEventListener('dragstart', function (e) {
+                dragSrc = btn;
+                e.dataTransfer.effectAllowed = 'move';
+                setTimeout(function () { btn.style.opacity = '0.35'; }, 0);
+            });
+
+            btn.addEventListener('dragend', function () {
+                btn.style.opacity   = '1';
+                btn.style.transform = '';
+                Array.from(bar.children).forEach(function (b) {
+                    b.style.transform   = '';
+                    b.style.borderColor = b._isActive ? '#1D4ED8' : '#CBD5E1';
+                    b.style.background  = b._isActive ? '#1D4ED8' : 'white';
+                    b.style.color       = b._isActive ? 'white'   : '#475569';
+                });
+            });
+
+            btn.addEventListener('dragover', function (e) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                if (btn !== dragSrc) {
+                    btn.style.transform   = 'scale(1.06)';
+                    btn.style.borderColor = '#60A5FA';
+                    btn.style.background  = btn._isActive ? '#1553b0' : '#EFF6FF';
+                    btn.style.color       = btn._isActive ? 'white'   : '#1D4ED8';
+                }
+            });
+
+            btn.addEventListener('dragleave', function () {
+                btn.style.transform = '';
+                if (btn._isActive) applyActive(btn);
+                else               applyInactive(btn);
+            });
+
+            btn.addEventListener('drop', function (e) {
+                e.preventDefault();
+                if (!dragSrc || dragSrc === btn) return;
+
+                // DOM 순서만 바꿈 (각 버튼의 _tabIdx는 그대로 유지)
+                var all  = Array.from(bar.children);
+                var from = all.indexOf(dragSrc);
+                var to   = all.indexOf(btn);
+                if (from < to) bar.insertBefore(dragSrc, btn.nextSibling);
+                else           bar.insertBefore(dragSrc, btn);
+
+                btn.style.transform = '';
+                if (btn._isActive) applyActive(btn);
+                else               applyInactive(btn);
+            });
+
+            bar.appendChild(btn);
+        });
+
+        // Streamlit 탭 컨테이너 바로 앞에 삽입
+        tabList.parentNode.insertBefore(bar, tabList.nextSibling);
+    }
+
+    // Streamlit 재렌더링 후 탭 바가 사라지면 재삽입
+    var mo = new MutationObserver(function () {
+        var doc = window.parent.document;
+        if (!doc.getElementById('__drag_tab_bar__')) {
+            RETRY = 0;
+            init();
+        }
+    });
+    mo.observe(window.parent.document.body, { childList: true, subtree: true });
+
+    init();
+})();
+</script>
+</body>
+</html>
+""", height=0, scrolling=False)
+
 tab1, tab2, tab3, tab4 = st.tabs([
     "  📊 개요  ","  📈 월별 추이  ","  🔎 시리즈 분석  ","  📋 상세 데이터  "
 ])
