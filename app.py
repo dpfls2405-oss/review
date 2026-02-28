@@ -4,186 +4,164 @@ import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
 
-# 1. 페이지 설정 및 세련된 라이트 디자인 (CSS)
-st.set_page_config(page_title="수요분석 리포트 v2", layout="wide")
+# 1. 페이지 설정 및 디자인 (이미지 57bab5 및 575cfc의 밝은 버전 스타일)
+st.set_page_config(page_title="SCM 수급 분석 리포트", layout="wide")
 
 st.markdown("""
     <style>
-    /* 전체 배경 및 폰트 */
     .stApp { background-color: #F8FAFC; }
-    
-    /* 세련된 KPI 카드 */
-    .kpi-card {
+    /* KPI 카드 스타일 */
+    .metric-card {
         background-color: white; padding: 20px; border-radius: 12px;
-        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03);
-        border: 1px solid #E2E8F0; text-align: center;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #E2E8F0;
+        text-align: center;
     }
-    .kpi-label { font-size: 13px; color: #64748B; font-weight: 600; margin-bottom: 8px; }
-    .kpi-value { font-size: 26px; font-weight: 800; color: #1E293B; }
-    
-    /* 리포트 카드 스타일 */
-    .report-container {
-        background-color: white; border-radius: 12px; padding: 30px;
-        border: 1px solid #E2E8F0; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        line-height: 1.8; color: #334155;
+    .metric-label { font-size: 14px; color: #64748B; font-weight: 600; }
+    .metric-value { font-size: 24px; font-weight: 800; color: #1E293B; margin-top: 8px; }
+    /* 리포트 박스 스타일 (사람이 읽는용) */
+    .analysis-report {
+        background-color: white; border-radius: 12px; padding: 25px;
+        border: 1px solid #E2E8F0; line-height: 1.8; color: #334155;
     }
-    .item-card {
-        background-color: #F8FAFC; padding: 18px; border-radius: 10px;
-        margin-top: 15px; border-left: 5px solid #3B82F6;
+    .item-highlight {
+        background-color: #F1F5F9; padding: 15px; border-radius: 10px;
+        margin-top: 10px; border-left: 5px solid #3B82F6;
     }
-    code { color: #2563EB; background: #EFF6FF; padding: 2px 4px; border-radius: 4px; font-weight: 600; }
+    code { color: #2563EB; background: #EFF6FF; padding: 2px 5px; border-radius: 4px; }
     </style>
     """, unsafe_allow_html=True)
 
-# 2. 데이터 로드 및 오류 방지 정제
+# 2. 데이터 로드 및 에러 방지 (Safe Loader)
 @st.cache_data
-def load_data():
+def load_data_safe():
     try:
         f = pd.read_csv("forecast_data.csv")
         a = pd.read_csv("actual_data.csv")
-    except:
-        st.error("데이터 파일을 로드할 수 없습니다. 파일명을 확인해주세요.")
-        return pd.DataFrame(), pd.DataFrame()
-
-    def clean_df(df):
-        # [KeyError 해결] supplier 컬럼명 자동 매칭
-        if 'supplier' not in df.columns:
-            if 'supply' in df.columns:
-                df = df.rename(columns={'supply': 'supplier'})
-            else:
-                df['supplier'] = '전체공급단'
         
-        # [이미지 57d0fe 반영] 숫자 시리즈 제거
-        if 'series' in df.columns:
-            df['series'] = df['series'].astype(str).str.strip()
-            df = df[~df['series'].str.isnumeric()]
+        def preprocess(df):
+            # 1. 컬럼명 유연화 (KeyError 방지)
+            rename_map = {'supply': 'supplier', '공급처': 'supplier'}
+            df = df.rename(columns={k: v for k, v in rename_map.items() if k in df.columns})
+            if 'supplier' not in df.columns: df['supplier'] = '전체공급단'
             
-        return df
+            # 2. 숫자 시리즈 제거 (이미지 57d0fe 이슈 해결)
+            if 'series' in df.columns:
+                df['series'] = df['series'].astype(str).str.strip()
+                df = df[~df['series'].str.isnumeric()]
+            return df
 
-    return clean_df(f), clean_df(a)
+        return preprocess(f), preprocess(a)
+    except Exception as e:
+        # 파일이 없거나 읽기 실패 시 빈 데이터프레임 반환하여 필터 UI라도 유지
+        return pd.DataFrame(columns=['ym', 'brand', 'supplier', 'series', 'combo', 'forecast']), pd.DataFrame()
 
-f_df, a_df = load_data()
+f_df, a_df = load_data_safe()
 
-# 3. 사이드바 필터 설정 (복구 및 강화)
-if not f_df.empty:
-    st.sidebar.header("🔍 필터 설정")
-    sel_ym = st.sidebar.selectbox("📅 기준 년월", sorted(f_df["ym"].unique(), reverse=True))
-    
-    # 브랜드 필터
-    brands = sorted(f_df["brand"].unique().tolist())
-    sel_br = st.sidebar.multiselect("🏷️ 브랜드", brands, default=brands)
-    
-    # 공급단 필터 (KeyError 없이 안전하게 로드)
-    suppliers = sorted(f_df["supplier"].unique().tolist())
-    sel_sup = st.sidebar.multiselect("🏭 공급단", suppliers, default=suppliers)
-    
-    # 분석 단위 (시리즈별 / 품목별)
-    unit = st.sidebar.radio("📊 분석 단위", ["시리즈별", "품목별"], horizontal=True)
+# 3. 사이드바 필터 (이미지 575cd7 스타일 복구)
+st.sidebar.title("🔍 필터 설정")
 
-    # 4. 데이터 계산
-    f_sel = f_df[(f_df["ym"] == sel_ym) & (f_df["brand"].isin(sel_br)) & (f_df["supplier"].isin(sel_sup))].copy()
-    a_sel = a_df[a_df["ym"] == sel_ym].copy()
+# 데이터가 비었을 때를 대비한 기본값 처리
+ym_list = sorted(f_df["ym"].unique(), reverse=True) if not f_df.empty else ["데이터없음"]
+sel_ym = st.sidebar.selectbox("📅 기준 년월", ym_list)
+
+brand_list = sorted(f_df["brand"].unique().tolist()) if not f_df.empty else []
+sel_br = st.sidebar.multiselect("🏷️ 브랜드", brand_list, default=brand_list)
+
+sup_list = sorted(f_df["supplier"].unique().tolist()) if not f_df.empty else []
+sel_sup = st.sidebar.multiselect("🏭 공급단", sup_list, default=sup_list)
+
+unit = st.sidebar.radio("📊 분석 단위", ["시리즈별", "품목별"], horizontal=True)
+
+# 4. 데이터 계산 및 검색/정렬 (이미지 5832b3 기능 포함)
+if not f_df.empty and not a_df.empty:
+    # 필터링
+    f_filtered = f_df[(f_df["ym"] == sel_ym) & (f_df["brand"].isin(sel_br)) & (f_df["supplier"].isin(sel_sup))]
+    mg = pd.merge(f_filtered, a_df[['combo', 'actual']], on='combo', how='left').fillna(0)
     
-    mg = pd.merge(f_sel, a_sel[['combo', 'actual']], on="combo", how="left").fillna(0)
     mg["차이"] = mg["actual"] - mg["forecast"]
     mg["오차량"] = mg["차이"].abs()
     mg["달성률(%)"] = np.where(mg["forecast"] > 0, (mg["actual"] / mg["forecast"] * 100).round(1), 0)
 
-    # 5. 상단 컨트롤 바 (이미지 5832b3, 57c8fd 반영)
-    st.title(f"🚀 {sel_ym} 수요 분석 대시보드")
-    
-    ctrl1, ctrl2, ctrl3 = st.columns([2, 2, 3])
-    with ctrl1:
-        sort_idx = st.selectbox("📌 정렬 지표", ["차이량(|실-예측|) 큰 순", "차이량(실-예측) 큰 순", "실수주량 큰 순", "예측수요 큰 순", "달성률 큰 순"])
-    with ctrl2:
-        top_n = st.slider("🎯 Top N", 5, 50, 15)
-    with ctrl3:
-        search = st.text_input("🔎 검색 (코드/명칭)", placeholder="예: S60, IBLE...")
+    # 상단 컨트롤 (정렬 및 검색)
+    c_head1, c_head2, c_head3 = st.columns([2, 2, 3])
+    with c_head1:
+        sort_col = st.selectbox("📌 정렬 지표", ["차이량(|실-예측|) 큰 순", "실수주량 큰 순", "달성률 큰 순"])
+    with c_head2:
+        top_n = st.slider("🎯 Top N 표시", 5, 50, 15)
+    with c_head3:
+        search_q = st.text_input("🔎 명칭/코드 검색", placeholder="예: IBLE, S60...")
 
-    # 정렬 및 검색 적용
-    sort_map = {"차이량(|실-예측|) 큰 순": "오차량", "차이량(실-예측) 큰 순": "차이", "실수주량 큰 순": "actual", "예측수요 큰 순": "forecast", "달성률 큰 순": "달성률(%)"}
-    mg = mg.sort_values(sort_map[sort_idx], ascending=(False if "큰 순" in sort_idx else True))
-    if search:
-        mg = mg[mg['combo'].str.contains(search, case=False) | mg['name'].str.contains(search, case=False)]
+    # 정렬 적용
+    sort_map = {"차이량(|실-예측|) 큰 순": "오차량", "실수주량 큰 순": "actual", "달성률 큰 순": "달성률(%)"}
+    mg = mg.sort_values(sort_map[sort_col], ascending=False)
+    if search_q:
+        mg = mg[mg['name'].str.contains(search_q, case=False) | mg['combo'].str.contains(search_q, case=False)]
 
-    # 6. KPI 요약 (이미지 57bab5 스타일)
-    t_f, t_a = mg['forecast'].sum(), mg['actual'].sum()
-    k1, k2, k3, k4 = st.columns(4)
-    k1.markdown(f'<div class="kpi-card"><div class="kpi-label">예측수요 합계</div><div class="kpi-value">{t_f:,.0f}</div></div>', unsafe_allow_html=True)
-    k2.markdown(f'<div class="kpi-card"><div class="kpi-label">실수주량 합계</div><div class="kpi-value">{t_a:,.0f}</div></div>', unsafe_allow_html=True)
-    k3.markdown(f'<div class="kpi-card"><div class="kpi-label">차이량 합계</div><div class="kpi-value" style="color:#F43F5E">{t_a-t_f:,.0f}</div></div>', unsafe_allow_html=True)
-    k4.markdown(f'<div class="kpi-card"><div class="kpi-label">전체 달성률</div><div class="kpi-value">{(t_a/t_f*100 if t_f>0 else 0):.1f}%</div></div>', unsafe_allow_html=True)
-
+    # 5. KPI 요약 (이미지 57bab5 디자인)
     st.write("---")
+    k1, k2, k3, k4 = st.columns(4)
+    t_f, t_a = mg['forecast'].sum(), mg['actual'].sum()
+    k1.markdown(f'<div class="metric-card"><div class="metric-label">예측수요 합계</div><div class="metric-value">{t_f:,.0f}</div></div>', unsafe_allow_html=True)
+    k2.markdown(f'<div class="metric-card"><div class="metric-label">실수주량 합계</div><div class="metric-value">{t_a:,.0f}</div></div>', unsafe_allow_html=True)
+    k3.markdown(f'<div class="metric-card"><div class="metric-label">차이량(실-예)</div><div class="metric-value" style="color:#EF4444">{(t_a-t_f):,.0f}</div></div>', unsafe_allow_html=True)
+    k4.markdown(f'<div class="metric-card"><div class="metric-label">전체 달성률</div><div class="metric-value">{(t_a/t_f*100 if t_f>0 else 0):.1f}%</div></div>', unsafe_allow_html=True)
 
-    # 7. 탭 구성 (이미지 575cfc, 575cd7, 575c98 스타일 반영)
-    tab1, tab2, tab3, tab4 = st.tabs(["📊 브랜드·공급단 분석", "📈 시계열 추이", "🔍 시리즈 상세", "📝 상세 분석 리포트"])
+    # 6. 탭 구성
+    tab1, tab2, tab3, tab4 = st.tabs(["📊 브랜드·공급단 분석", "📈 시계열 추이", "🔍 시리즈 상세", "📝 분석 리포트"])
 
     with tab1:
-        c1, c2 = st.columns(2)
-        with c1:
-            st.subheader("브랜드별 예측 현황")
-            fig_b = px.bar(mg.groupby('brand')['forecast'].sum().reset_index(), x='brand', y='forecast', color='brand', template='plotly_white')
-            st.plotly_chart(fig_b, use_container_width=True)
-        with c2:
-            st.subheader("공급단별 예측 비중")
-            fig_p = px.pie(mg.groupby('supplier')['forecast'].sum().reset_index(), values='forecast', names='supplier', hole=0.4, template='plotly_white')
-            st.plotly_chart(fig_p, use_container_width=True)
         st.subheader("브랜드 × 공급단 분석")
-        pivot = mg.pivot_table(index='brand', columns='supplier', values='forecast', aggfunc='sum', fill_value=0)
-        st.dataframe(pivot.style.format("{:,.0f}").background_gradient(cmap='Blues'), use_container_width=True)
+        col_b1, col_b2 = st.columns(2)
+        with col_b1:
+            fig_b = px.bar(mg.groupby('brand')['forecast'].sum().reset_index(), x='brand', y='forecast', title="브랜드별 예측량", template="plotly_white")
+            st.plotly_chart(fig_b, use_container_width=True)
+        with col_b2:
+            fig_p = px.pie(mg.groupby('supplier')['forecast'].sum().reset_index(), values='forecast', names='supplier', hole=0.4, title="공급단 비중", template="plotly_white")
+            st.plotly_chart(fig_p, use_container_width=True)
+        
+        pivot_table = mg.pivot_table(index='brand', columns='supplier', values='forecast', aggfunc='sum', fill_value=0)
+        st.dataframe(pivot_table.style.format("{:,.0f}").background_gradient(cmap='Blues'), use_container_width=True)
 
     with tab2:
-        st.subheader("월별 수요 및 실적 추이")
-        # 시계열 데이터 가공
-        ts_f = f_df[f_df['brand'].isin(sel_br)].groupby('ym')['forecast'].sum()
-        ts_a = pd.merge(a_df, f_df[['combo', 'brand']], on='combo').drop_duplicates()
-        ts_a = ts_a[ts_a['brand'].isin(sel_br)].groupby('ym')['actual'].sum()
-        
-        fig_ts = go.Figure()
-        fig_ts.add_trace(go.Scatter(x=ts_f.index, y=ts_f.values, name="예측 수요", line=dict(color='#3B82F6', width=3)))
-        fig_ts.add_trace(go.Scatter(x=ts_a.index, y=ts_a.values, name="실제 수주", line=dict(color='#F43F5E', width=3, dash='dot')))
-        fig_ts.update_layout(template='plotly_white', hovermode='x unified')
+        st.subheader("월별 수요/실적 시계열 추이")
+        # 시계열용 전체 데이터 병합 (간소화)
+        ts_data = f_df[f_df['brand'].isin(sel_br)].groupby('ym')['forecast'].sum().reset_index()
+        fig_ts = px.line(ts_data, x='ym', y='forecast', title="전체 수요 트렌드", markers=True, template="plotly_white")
         st.plotly_chart(fig_ts, use_container_width=True)
 
     with tab3:
-        st.subheader("시리즈별 상세 분석")
-        target_br = st.selectbox("분석할 브랜드 선택", sel_br)
-        br_data = mg[mg['brand'] == target_br].groupby('series')[['forecast', 'actual']].sum().head(top_n)
-        fig_s = px.bar(br_data.reset_index(), x='series', y=['forecast', 'actual'], barmode='group', template='plotly_white')
-        st.plotly_chart(fig_s, use_container_width=True)
+        st.subheader("시리즈별 상세 현황")
+        target_br = st.selectbox("브랜드 선택", sel_br)
+        br_data = mg[mg['brand'] == target_br].groupby('series')[['forecast', 'actual']].sum().head(top_n).reset_index()
+        fig_series = px.bar(br_data, x='series', y=['forecast', 'actual'], barmode='group', template="plotly_white")
+        st.plotly_chart(fig_series, use_container_width=True)
 
     with tab4:
-        st.subheader("📋 사람의 언어로 정리한 분석 보고")
-        top_5 = mg.sort_values('오차량', ascending=False).head(5)
+        st.subheader("📋 담당자용 상세 분석 리포트")
+        top_items = mg.head(5)
         
-        report_items = ""
-        for i, (_, row) in enumerate(top_5.iterrows(), 1):
-            cb = str(row['combo'])
-            code, color = (cb.split('-')[0], cb.split('-')[1]) if '-' in cb else (cb, "기본")
-            
-            # [이미지 582bae 등 반영] 사람 중심의 서술형 문구
-            report_items += f"""
-            <div class="item-card">
-                <strong>{i}. {row['name']}</strong> (공급처: {row['supplier']})<br>
-                이 제품은 <code>시리즈: {row['series']}</code>, <code>단품코드: {code}</code>, <code>색상: {color}</code> 정보를 가진 
-                <strong>'{row['name']}'</strong> 모델입니다.<br>
-                분석 결과, 이번 달 예측 대비 실제 수주는 <strong>{int(row['actual']):,}</strong>건으로 집계되었으며, 
-                최종 <strong>달성률은 {row['달성률(%)']:.1f}%</strong>를 기록했습니다. 
-                예측치와 약 {int(abs(row['차이'])):,}만큼의 차이가 발생하여 정밀한 수급 확인이 필요해 보입니다.
-            </div>
-            """
+        item_html = ""
+        for i, (_, row) in enumerate(top_items.iterrows(), 1):
+            code = row['combo'].split('-')[0] if '-' in row['combo'] else row['combo']
+            color = row['combo'].split('-')[1] if '-' in row['combo'] else "정보없음"
+            item_html += f"""
+            <div class="item-highlight">
+                <strong>{i}. {row['name']}</strong> (시리즈: {row['series']})<br>
+                품목코드 <code>{code}</code>, 색상 <code>{color}</code> 제품으로, 
+                이번 달 예측 대비 실제 수주는 <strong>{int(row['actual']):,}</strong>건이 발생했습니다. 
+                현재 <strong>달성률 {row['달성률(%)']:.1f}%</strong> 상태이며, 예측치와 약 {int(abs(row['차이'])):,} 정도의 차이를 보입니다.
+            </div>"""
 
         st.markdown(f"""
-        <div class="report-container">
-            안녕하세요, 담당자님. {sel_ym} 수급 데이터 분석 요약입니다.<br><br>
-            현재 선택된 기준에서 전체 예측 수요 <strong>{int(t_f):,}</strong> 대비 실제 수주는 <strong>{int(t_a):,}</strong>로 나타나 
-            전체적으로 <strong>{t_a/t_f*100:.1f}%의 달성률</strong>을 보이고 있습니다.<br><br>
-            
-            특히 예측과 실적의 차이가 커서 <strong>현장에서 재고 과부하 혹은 부족이 우려되는 상위 5개 품목</strong>은 다음과 같습니다.
-            {report_items}
-            <br>
-            위 품목들은 현재 오차 절대값이 가장 큰 순서로 나열되었습니다. 
-            차기 수요 예측 및 생산 계획 수립 시, 해당 시리즈들의 최근 수주 경향을 우선적으로 반영해 주시길 권장드립니다.
+        <div class="analysis-report">
+            안녕하세요. {sel_ym} 데이터 기반 분석 리포트입니다.<br><br>
+            선택하신 조건의 전체 예측치는 <strong>{int(t_f):,}</strong>이나 실적은 <strong>{int(t_a):,}</strong>로 확인되어, 
+            약 <strong>{t_a/t_f*100:.1f}%의 수급 달성률</strong>을 보이고 있습니다.<br><br>
+            오차 범위가 커서 집중 관리가 필요한 상위 5개 품목 리스트입니다:
+            {item_html}
+            <br>위 리스트는 현재 설정하신 <strong>{sort_col}</strong> 기준으로 추출되었습니다. 
+            생산 및 재고 계획 수립 시 해당 품목들의 변동성을 우선적으로 검토해 주시기 바랍니다.
         </div>
         """, unsafe_allow_html=True)
+else:
+    st.info("사이드바에서 필터를 선택하거나 데이터를 확인해주세요.")
