@@ -713,58 +713,77 @@ with tab1:
     with col_rep:
         st.markdown('<div class="section-card">', unsafe_allow_html=True)
         st.markdown('<div class="section-title">자동 분석 요약</div>', unsafe_allow_html=True)
-
-        sr_agg2 = df_ov.groupby("series").agg(
-            f=("forecast","sum"), a=("actual","sum")
-        ).reset_index()
-        sr_agg2["달성률"] = np.where(
-            sr_agg2["f"] > 0, (sr_agg2["a"]/sr_agg2["f"]*100).round(1), 0
-        )
-        sr_agg2["오차량"] = (sr_agg2["a"] - sr_agg2["f"]).abs()
-        top_err = sr_agg2.sort_values("오차량", ascending=False).head(3)
-        under_s = sr_agg2[sr_agg2["달성률"] < 90].sort_values("달성률").head(3)
-        over_s  = sr_agg2[sr_agg2["달성률"] > 110].sort_values("달성률", ascending=False).head(3)
-
-        color_r = "#10B981" if t_r >= 100 else "#EF4444"
-        trend_w = "초과달성" if t_r >= 100 else "미달"
-
-        html_r = f"""
-        <div class="report-box">
-            <b>{month_label}</b> 기준 전체 달성률은
-            <b style="color:{color_r}; font-size:16px">{fmt_pct(t_r)}</b>으로
-            예측 대비 <b style="color:{color_r}">{trend_w}</b> 상태입니다.<br><br>
-        """
-        if not top_err.empty:
-            html_r += "<b>📍 오차 상위 시리즈</b><br>"
-            for _, row in top_err.iterrows():
-                if row["달성률"] < 90:
-                    tag = '<span class="report-tag-bad">과소예측</span>'
-                elif row["달성률"] > 110:
-                    tag = '<span class="report-tag-warn">과대예측</span>'
-                else:
-                    tag = '<span class="report-tag-ok">양호</span>'
-                html_r += (
-                    f"&nbsp;&nbsp;{tag} <b>{row['series']}</b> "
-                    f"달성률 {row['달성률']:.1f}% "
-                    f"(오차 {fmt_int(row['오차량'])}건)<br>"
-                )
-
-        if not under_s.empty:
-            names = ", ".join(under_s["series"].tolist())
-            html_r += f"<br><b>⚠️ 과소예측 (달성률 &lt;90%)</b>: {names}<br>"
-        if not over_s.empty:
-            names = ", ".join(over_s["series"].tolist())
-            html_r += f"<b>🔺 과대예측 (달성률 &gt;110%)</b>: {names}<br>"
-
-        html_r += """
-            <br><b>💡 권장 조치</b><br>
-            &nbsp;&nbsp;① 오차 상위 품목의 재고·채널 현황 즉시 점검<br>
-            &nbsp;&nbsp;② 과소예측 품목은 반품·납기 원인 확인<br>
-            &nbsp;&nbsp;③ 다음 예측 주기에 최근 3개월 추세 가중치 반영
-        </div>
-        """
-        st.markdown(html_r, unsafe_allow_html=True)
+        st.markdown(build_report_html(df_ov, month_label), unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
+
+
+# ══════════════════════════════════════════════
+#  공통 유틸: 분석 요약 HTML 생성
+#  df      : 분석 대상 DataFrame (mg_all 기준 필터 적용 후)
+#  context : 어디서 호출했는지 표기용 문자열 (예: "2026년 02월")
+#  search  : 검색어 (탭4에서 전달, 없으면 빈 문자열)
+# ══════════════════════════════════════════════
+def build_report_html(df: pd.DataFrame, context: str, search: str = "") -> str:
+    t_f  = int(df["forecast"].sum())
+    t_a  = int(df["actual"].sum())
+    t_d  = t_a - t_f
+    t_r  = round(t_a / t_f * 100, 1) if t_f > 0 else 0.0
+
+    sr = df.groupby("series").agg(f=("forecast","sum"), a=("actual","sum")).reset_index()
+    sr["달성률"] = np.where(sr["f"] > 0, (sr["a"] / sr["f"] * 100).round(1), 0)
+    sr["오차량"] = (sr["a"] - sr["f"]).abs()
+
+    top_err = sr.sort_values("오차량", ascending=False).head(3)
+    under_s = sr[sr["달성률"] < 90].sort_values("달성률").head(3)
+    over_s  = sr[sr["달성률"] > 110].sort_values("달성률", ascending=False).head(3)
+
+    color_r = "#10B981" if t_r >= 100 else "#EF4444"
+    trend_w = "초과달성" if t_r >= 100 else "미달"
+
+    # 검색어가 있으면 맥락 표시
+    ctx_note = ""
+    if search:
+        ctx_note = f' &nbsp;·&nbsp; <span style="color:#64748B; font-size:13px">검색어: <b>{search}</b></span>'
+
+    html = f"""
+    <div class="report-box">
+        <b>{context}</b>{ctx_note} 기준 전체 달성률은
+        <b style="color:{color_r}; font-size:16px">{fmt_pct(t_r)}</b>으로
+        예측 대비 <b style="color:{color_r}">{trend_w}</b> 상태입니다.
+        &nbsp;(예측 <b>{fmt_int(t_f)}</b> → 실수주 <b>{fmt_int(t_a)}</b>,
+        차이 <b style="color:{color_r}">{'+' if t_d>=0 else ''}{fmt_int(t_d)}</b>건)<br><br>
+    """
+
+    if not top_err.empty:
+        html += "<b>📍 오차 상위 시리즈</b><br>"
+        for _, row in top_err.iterrows():
+            if row["달성률"] < 90:
+                tag = '<span class="report-tag-bad">과소예측</span>'
+            elif row["달성률"] > 110:
+                tag = '<span class="report-tag-warn">과대예측</span>'
+            else:
+                tag = '<span class="report-tag-ok">양호</span>'
+            html += (
+                f"&nbsp;&nbsp;{tag} <b>{row['series']}</b> "
+                f"달성률 {row['달성률']:.1f}% "
+                f"(오차 {fmt_int(row['오차량'])}건)<br>"
+            )
+
+    if not under_s.empty:
+        names = ", ".join(under_s["series"].tolist())
+        html += f"<br><b>⚠️ 과소예측 (달성률 &lt;90%)</b>: {names}<br>"
+    if not over_s.empty:
+        names = ", ".join(over_s["series"].tolist())
+        html += f"<b>🔺 과대예측 (달성률 &gt;110%)</b>: {names}<br>"
+
+    html += """
+        <br><b>💡 권장 조치</b><br>
+        &nbsp;&nbsp;① 오차 상위 품목의 재고·채널 현황 즉시 점검<br>
+        &nbsp;&nbsp;② 과소예측 품목은 반품·납기 원인 확인<br>
+        &nbsp;&nbsp;③ 다음 예측 주기에 최근 3개월 추세 가중치 반영
+    </div>
+    """
+    return html
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1185,3 +1204,21 @@ with tab4:
             file_name=f"forecast_detail_{sel_ym}.csv",
             mime="text/csv"
         )
+
+        # ── 하단 자동 분석 요약 (검색/필터 적용 결과 기준)
+        st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+        st.markdown('<div class="section-card">', unsafe_allow_html=True)
+        st.markdown('<div class="section-title">🤖 자동 분석 요약 <span style="font-size:13px; font-weight:400; color:#94A3B8">— 현재 조건 기준</span></div>', unsafe_allow_html=True)
+
+        if df_det2.empty or df_det2["forecast"].sum() == 0:
+            st.info("분석할 데이터가 없습니다. 검색 조건을 확인하세요.")
+        else:
+            # 검색어 적용 전 전체(df_det) 기준 컨텍스트 레이블
+            supply_label = f" · {sel_supply}" if sel_supply != "전체" else ""
+            search_label = search if search else ""
+            ctx = f"{month_label}{supply_label}"
+            st.markdown(
+                build_report_html(df_det2, ctx, search_label),
+                unsafe_allow_html=True
+            )
+        st.markdown('</div>', unsafe_allow_html=True)
