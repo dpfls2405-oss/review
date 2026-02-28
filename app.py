@@ -94,51 +94,47 @@ mg_all["오차량"] = mg_all["차이"].abs()
 mg_all["달성률(%)"] = np.where(mg_all["forecast"] > 0, (mg_all["actual"] / mg_all["forecast"] * 100).round(1), 0)
 
 # -----------------------
-# 사이드바: 한글 필터 (공통 + 탭별)
+# 사이드바: 한글 필터 (모두 expander로 구성)
 # -----------------------
 st.sidebar.title("필터 설정")
 
-# 공통 필터: 기준 년월, 브랜드
-sel_ym = st.sidebar.selectbox("기준 년월", sorted(f_df["ym"].unique(), reverse=True))
-all_brands = sorted(f_df["brand"].unique().tolist())
-sel_br = st.sidebar.multiselect("브랜드 선택", all_brands, default=all_brands)
+with st.sidebar.expander("공통 필터", expanded=True):
+    sel_ym = st.selectbox("기준 년월", sorted(f_df["ym"].unique(), reverse=True))
+    all_brands = sorted(f_df["brand"].unique().tolist())
+    sel_br = st.multiselect("브랜드 선택", all_brands, default=all_brands)
 
 # 공급단 옵션: 결측값(NaN)은 제외 (사용자가 '전체' 선택 시 모든 공급단 포함)
 supply_values = []
 if 'supply' in f_df.columns:
     supply_values = sorted(f_df['supply'].dropna().unique().tolist())
-supply_options = ["전체"] + supply_values
-sel_supply_main = st.sidebar.selectbox("공급단 선택 (메인)", supply_options, index=0)
 
-# 시리즈 목록 (브랜드 선택에 따라 동적)
-available_series = sorted(f_df[f_df['brand'].isin(sel_br)]['series'].dropna().unique().tolist())
-series_count = len(available_series)
-
-st.sidebar.markdown("---")
-st.sidebar.write(f"시리즈 수: **{series_count}개**")
-if series_count == 0:
-    st.sidebar.info("선택된 브랜드에 시리즈 데이터가 없습니다.")
-    sel_sr_main = []
-elif series_count <= 30:
-    sel_sr_main = st.sidebar.multiselect("시리즈 선택 (메인)", available_series, default=available_series)
-else:
-    search_series_main = st.sidebar.text_input("시리즈 검색 (메인)")
-    top_n_default_main = 20
-    series_agg_all = f_df[f_df['brand'].isin(sel_br)].groupby('series').agg({'forecast':'sum'}).reset_index()
-    top_series_main = series_agg_all.sort_values('forecast', ascending=False).head(top_n_default_main)['series'].tolist()
-    if search_series_main:
-        filtered_series_main = [s for s in available_series if search_series_main.lower() in s.lower()]
-        sel_sr_main = st.sidebar.multiselect("검색 결과에서 선택 (메인)", filtered_series_main, default=filtered_series_main[:top_n_default_main])
+with st.sidebar.expander("메인 대시보드 필터", expanded=True):
+    st.write("메인 탭에서 적용되는 필터입니다.")
+    sel_supply_main = st.selectbox("공급단 선택 (메인)", ["전체"] + supply_values, index=0)
+    # 시리즈 목록 (브랜드 선택에 따라 동적)
+    available_series = sorted(f_df[f_df['brand'].isin(sel_br)]['series'].dropna().unique().tolist())
+    series_count = len(available_series)
+    st.write(f"시리즈 수: **{series_count}개**")
+    if series_count == 0:
+        st.info("선택된 브랜드에 시리즈 데이터가 없습니다.")
+        sel_sr_main = []
+    elif series_count <= 30:
+        sel_sr_main = st.multiselect("시리즈 선택 (메인)", available_series, default=available_series)
     else:
-        sel_sr_main = st.sidebar.multiselect("시리즈 선택 (메인 기본 상위)", available_series, default=top_series_main)
+        search_series_main = st.text_input("시리즈 검색 (메인)")
+        top_n_default_main = 20
+        series_agg_all = f_df[f_df['brand'].isin(sel_br)].groupby('series').agg({'forecast':'sum'}).reset_index()
+        top_series_main = series_agg_all.sort_values('forecast', ascending=False).head(top_n_default_main)['series'].tolist()
+        if search_series_main:
+            filtered_series_main = [s for s in available_series if search_series_main.lower() in s.lower()]
+            sel_sr_main = st.multiselect("검색 결과에서 선택 (메인)", filtered_series_main, default=filtered_series_main[:top_n_default_main])
+        else:
+            sel_sr_main = st.multiselect("시리즈 선택 (메인 기본 상위)", available_series, default=top_series_main)
+    sort_metric_main = st.selectbox("정렬 지표 (메인)", 
+                                   ["차이량(|실-예측|) 큰 순", "차이량(실-예측) 큰 순", "실수주량 큰 순", "예측수요 큰 순", "달성률 큰 순"])
+    top_n_main = st.slider("Top N 표시 수 (메인)", 5, 50, 10)
+    search_term_main = st.text_input("검색 (메인: 단품코드/명칭)")
 
-st.sidebar.markdown("---")
-sort_metric_main = st.sidebar.selectbox("정렬 지표 (메인)", 
-                                       ["차이량(|실-예측|) 큰 순", "차이량(실-예측) 큰 순", "실수주량 큰 순", "예측수요 큰 순", "달성률 큰 순"])
-top_n_main = st.sidebar.slider("Top N 표시 수 (메인)", 5, 50, 10)
-search_term_main = st.sidebar.text_input("검색 (메인: 단품코드/명칭)")
-
-# 탭별 필터 (사이드바 expander)
 with st.sidebar.expander("시계열 추이 필터", expanded=False):
     ts_mode = st.radio("표시 기준 (시계열)", ("브랜드별", "시리즈별"))
     ts_choices = sorted(mg_all['brand'].unique()) if ts_mode == "브랜드별" else sorted(mg_all['series'].unique())
@@ -186,17 +182,18 @@ def style_number_df(df, int_cols=None, float_cols=None):
 # -----------------------
 with tab_main:
     st.header("메인 대시보드")
-    st.write("사이드바의 필터로 제어됩니다. (브랜드 / 공급단 / 시리즈 등)")
+    st.write("사이드바의 '메인 대시보드 필터'에서 공급단·시리즈 등을 접어서 선택할 수 있습니다.")
 
     # 필터 적용: 공급단 선택이 '전체'이면 모든 공급단 포함, 아니면 해당 공급단만
     if not sel_sr_main:
-        st.warning("사이드바에서 시리즈를 선택하세요.")
+        st.warning("사이드바의 '메인 대시보드 필터'에서 시리즈를 선택하세요.")
     else:
         df_main = f_df[(f_df["ym"] == sel_ym) & (f_df["brand"].isin(sel_br)) & (f_df["series"].isin(sel_sr_main))].copy()
-        # 공급단 필터 적용 (메인)
+        # 공급단 필터 적용 (메인) — '전체'이면 필터 적용 안 함
         if sel_supply_main != "전체":
             df_main = df_main[df_main['supply'] == sel_supply_main]
 
+        # 병합: 실제값은 a_df에서 가져오되, 공급단이 NaN인 행은 유지하되 '전체' 선택 시 포함
         a_sel = a_df[a_df["ym"] == sel_ym].copy()
         mg_main = pd.merge(df_main, a_sel[["combo", "actual"]], on="combo", how="left")
         mg_main["actual"] = mg_main["actual"].fillna(0).astype(int)
@@ -259,10 +256,8 @@ with tab_main:
 
         # 데이터 테이블: 숫자 포맷 적용
         display_df = mg_main.copy()
-        # 필요한 컬럼만 정렬해서 보여주기
         cols_show = ['ym','brand','series','combo','name','supply','forecast','actual','차이','달성률(%)']
         display_df = display_df[cols_show].fillna("")
-        # 스타일 적용
         st.subheader("상세 데이터")
         st.dataframe(style_number_df(display_df, int_cols=['forecast','actual','차이'], float_cols=['달성률(%)']), use_container_width=True)
 
@@ -355,7 +350,9 @@ with tab_all:
         pivot['총합'] = pivot.sum(axis=1)
         pivot = pivot.sort_values('총합', ascending=False).drop(columns=['총합'])
         st.subheader("브랜드 × 공급단 예측량")
-        st.dataframe(style_number_df(pivot.astype(int).reset_index(), int_cols=pivot.columns.tolist()), use_container_width=True)
+        pivot_display = pivot.astype(int).reset_index()
+        int_cols = [c for c in pivot_display.columns if c != 'brand']
+        st.dataframe(style_number_df(pivot_display, int_cols=int_cols), use_container_width=True)
 
 # -----------------------
 # 탭: 수주대비 실적 분석 (한글 서술형 리포트)
@@ -366,54 +363,46 @@ def generate_narrative(mg_perf, low_thr=90, high_thr=110):
     total_diff = total_actual - total_forecast
     total_rate = (total_actual / total_forecast * 100) if total_forecast > 0 else 0.0
 
-    # 상위 오차 품목
     series_perf = mg_perf.groupby('series').agg({'forecast':'sum','actual':'sum'}).reset_index()
     series_perf['달성률'] = np.where(series_perf['forecast']>0, (series_perf['actual']/series_perf['forecast']*100).round(1), 0)
     series_perf['오차량'] = (series_perf['actual'] - series_perf['forecast']).abs()
     worst = series_perf.sort_values('오차량', ascending=False).head(5)
 
-    # 과대/과소 예측
     under = series_perf[series_perf['달성률'] < low_thr].sort_values('달성률').head(5)
     over = series_perf[series_perf['달성률'] > high_thr].sort_values('달성률', ascending=False).head(5)
 
-    # 서술 생성
     html = f"""
     <div class="analysis-box">
       <strong>요약</strong><br>
-      기준월 전체 예측수요는 <strong>{total_forecast:,}</strong>건, 실제 수주는 <strong>{total_actual:,}</strong>건으로 집계되었습니다.
+      기준월 전체 예측수요는 <strong>{total_forecast:,}</strong>건, 실제 수주는 <strong>{total_actual:,}</strong>건입니다.
       전체 차이는 <strong>{total_diff:,}</strong>건이며, 전체 달성률은 <strong>{total_rate:.1f}%</strong>입니다.<br><br>
       <strong>핵심 관찰</strong><br>
-      - 전체적으로 달성률이 {total_rate:.1f}%로 나타나 예측 대비 실수주가 {'부족' if total_rate<100 else '초과'}한 경향이 있습니다.<br>
-      - 특히 아래 상위 오차 품목 5개는 예측과 실제의 차이가 커서 우선 원인 분석이 필요합니다.<br><br>
-      <strong>상위 오차 품목 (절대 오차 기준)</strong>
+      - 전체 달성률이 {total_rate:.1f}%로, 예측 대비 실수주가 {'부족' if total_rate<100 else '초과'}한 경향입니다.<br>
+      - 아래 상위 오차 품목 5개는 예측과 실제의 차이가 커서 우선 원인 분석이 필요합니다.<br><br>
+      <strong>상위 오차 품목 (절대 오차 기준)</strong><br>
     """
     if worst.empty:
-        html += "<div>해당 없음</div>"
+        html += "해당 없음<br>"
     else:
-        for i, row in worst.iterrows():
-            idx = i + 1
+        for _, row in worst.iterrows():
             html += f"- {row['series']}: 예측 {int(row['forecast']):,} → 실제 {int(row['actual']):,} (오차 {int(row['오차량']):,}, 달성률 {row['달성률']:.1f}%)<br>"
 
     html += "<br><strong>과소/과대 예측 요약</strong><br>"
     if under.empty:
-        html += "- 과소예측(달성률 < {0}%) 항목: 없음<br>".format(low_thr)
+        html += f"- 과소예측(달성률 < {low_thr}%) 항목: 없음<br>"
     else:
-        html += "- 과소예측(달성률 < {0}%) 상위: ".format(low_thr)
-        html += ", ".join([f"{r['series']}({r['달성률']}%)" for _, r in under.iterrows()]) + "<br>"
-
+        html += "- 과소예측 상위: " + ", ".join([f"{r['series']}({r['달성률']}%)" for _, r in under.iterrows()]) + "<br>"
     if over.empty:
-        html += "- 과대예측(달성률 > {0}%) 항목: 없음<br>".format(high_thr)
+        html += f"- 과대예측(달성률 > {high_thr}%) 항목: 없음<br>"
     else:
-        html += "- 과대예측(달성률 > {0}%) 상위: ".format(high_thr)
-        html += ", ".join([f"{r['series']}({r['달성률']}%)" for _, r in over.iterrows()]) + "<br>"
+        html += "- 과대예측 상위: " + ", ".join([f"{r['series']}({r['달성률']}%)" for _, r in over.iterrows()]) + "<br>"
 
     html += """
       <br><strong>권장 조치 (우선순위)</strong><br>
-      1. 상위 오차 품목에 대해 재고·프로모션·납기·채널별 판매 현황을 즉시 확인하세요.<br>
-      2. 과소예측 품목은 수요 감소 원인(반품·납기지연·채널 축소 등)을 점검하고, 과대예측 품목은 판촉·대량발주 여부를 확인하세요.<br>
-      3. 다음 예측 주기에는 상위 변동 시리즈에 대해 최근 3개월 추세를 반영하거나 가중치를 조정하세요.<br>
-      4. 반복적으로 오차가 발생하는 시리즈는 별도 모니터링 대상으로 지정해 알림을 설정하세요.<br><br>
-      필요하면 각 권장 조치별로 체크리스트 형태의 세부 항목도 자동 생성해 드리겠습니다.
+      1. 상위 오차 품목의 재고·프로모션·납기·채널별 판매 현황을 즉시 확인하세요.<br>
+      2. 과소예측 품목은 수요 감소 원인(반품·납기지연·채널 축소 등)을 점검하세요.<br>
+      3. 과대예측 품목은 판촉·대량발주 여부를 확인하고 다음 예측에 반영하세요.<br>
+      4. 반복 오차 시 별도 모니터링 대상으로 지정해 알림을 설정하세요.<br>
     </div>
     """
     return html
@@ -422,7 +411,6 @@ with tab_perf:
     st.header("수주대비 실적 분석")
     st.write("사이드바의 필터로 제어됩니다. (기준 년월 / 브랜드 / 공급단 등)")
 
-    # 필터 적용: 기준월, 브랜드, 공급단(메인에서 선택한 공급단이 '전체'이면 전체)
     mg_perf = mg_all[(mg_all['ym'] == sel_ym) & (mg_all['brand'].isin(sel_br))].copy()
     if sel_supply_main != "전체":
         mg_perf = mg_perf[mg_perf['supply'] == sel_supply_main]
@@ -446,14 +434,12 @@ with tab_perf:
         with p4:
             st.metric("전체 달성률", f"{total_rate:.1f}%")
 
-        # 표: 시리즈별 성과
         series_perf = mg_perf.groupby('series').agg({'forecast':'sum','actual':'sum'}).reset_index()
         series_perf['달성률(%)'] = np.where(series_perf['forecast']>0, (series_perf['actual']/series_perf['forecast']*100).round(1), 0)
         series_perf['오차량'] = (series_perf['actual'] - series_perf['forecast']).abs()
         st.subheader("시리즈별 성과 (요약)")
         st.dataframe(style_number_df(series_perf.rename(columns={'forecast':'예측수요','actual':'실수주'}), int_cols=['예측수요','실수주','오차량'], float_cols=['달성률(%)']), use_container_width=True)
 
-        # 한글 서술형 리포트 (AI 스타일)
         st.subheader("자동 분석 리포트 (요약)")
         narrative_html = generate_narrative(mg_perf, low_thr=perf_threshold_low, high_thr=perf_threshold_high)
         st.markdown(narrative_html, unsafe_allow_html=True)
