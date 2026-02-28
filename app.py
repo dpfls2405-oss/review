@@ -2,60 +2,63 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-import io, os
+import io
 
-# ─────────────────────────────────────────────
-# [1] 기본 설정 및 데이터 로드
+# 1. 페이지 설정 및 다크 테마 스타일링 (HTML 느낌 재현)
 st.set_page_config(page_title="수요예측 대시보드", page_icon="📊", layout="wide")
 
+st.markdown("""
+    <style>
+    .stApp { background-color: #0b1020; color: #eef2ff; }
+    [data-testid="stSidebar"] { background-color: #121a33 !important; }
+    .section-header { font-size: 20px; font-weight: bold; margin: 20px 0; color: #34d399; border-bottom: 2px solid #263156; padding-bottom: 10px; }
+    </style>
+    """, unsafe_allow_html=True)
+
+# 2. 데이터 로드 (캐싱 적용)
 @st.cache_data
 def load_data():
     f = pd.read_csv("forecast_data.csv")
     a = pd.read_csv("actual_data.csv")
+    # 콤보 키를 기준으로 병합을 용이하게 하기 위해 공백 제거 등 전처리
+    f['combo'] = f['combo'].str.strip()
+    a['combo'] = a['combo'].str.strip()
     return f, a
 
-try:
-    f_df, a_df = load_data()
-except Exception as e:
-    st.error(f"데이터 파일을 로드하는 중 오류가 발생했습니다: {e}")
-    st.stop()
+f_df, a_df = load_data()
 
-# ─────────────────────────────────────────────
-# [2] 사이드바 필터 설정
-st.sidebar.header("📂 필터 설정")
+# 3. 사이드바 검색 및 필터 설정
+st.sidebar.title("🔍 검색 및 필터")
+search_query = st.sidebar.text_input("품목명/코드/시리즈 검색", "") # 사라졌던 검색창 복구
+
 ym_list = sorted(f_df["ym"].unique(), reverse=True)
 sel_ym = st.sidebar.selectbox("기준 년월", ym_list)
 
-# 브랜드 및 공급단 필터 (기존 로직 유지)
-brands = ["전체"] + list(f_df["brand"].unique())
+brands = ["전체"] + sorted(f_df["brand"].unique().tolist())
 sel_br = st.sidebar.multiselect("브랜드", brands, default=["전체"])
-supplies = ["전체"] + list(f_df["supply"].unique())
-sel_sp = st.sidebar.multiselect("공급단", supplies, default=["전체"])
 
-# ─────────────────────────────────────────────
-# [3] 데이터 필터링 및 안전장치 (오류 해결 핵심)
+# 4. 데이터 필터링 로직
 f_sel = f_df[f_df["ym"] == sel_ym].copy()
 a_sel = a_df[a_df["ym"] == sel_ym].copy()
 
-if "전체" not in sel_br:
+# 브랜드 필터 적용
+if "전체" not in sel_br and sel_br:
     f_sel = f_sel[f_sel["brand"].isin(sel_br)]
     a_sel = a_sel[a_sel["brand"].isin(sel_br)]
-if "전체" not in sel_sp:
-    f_sel = f_sel[f_sel["supply"].isin(sel_sp)]
-    a_sel = a_sel[a_sel["supply"].isin(sel_sp)]
 
-# 🚨 예측 데이터조차 없는 경우 (안전장치 1)
-if f_sel.empty:
-    st.warning(f"⚠️ {sel_ym}에 해당하는 예측 데이터가 없습니다.")
-    st.stop()
+# 🚨 검색어 필터 적용 (HTML의 검색 기능 재현)
+if search_query:
+    f_sel = f_sel[
+        f_sel["name"].str.contains(search_query, case=False, na=False) | 
+        f_sel["combo"].str.contains(search_query, case=False, na=False) |
+        f_sel["series"].str.contains(search_query, case=False, na=False)
+    ]
 
-# 데이터 병합 및 계산
+# 5. 데이터 병합 및 오류 방지 계산
 mg = pd.merge(f_sel, a_sel[["combo", "actual"]], on="combo", how="left")
 mg["actual"] = mg["actual"].fillna(0)
-has_act = a_sel["actual"].sum() > 0 # 실적 존재 여부 체크
+has_act = a_sel["actual"].sum() > 0
 
-# 🚨 실적이 없는 달을 위한 계산 보정 (안전장치 2: 오류 Line 245 해결)
 if not has_act:
     mg["diff"] = 0
     mg["rate"] = 0
@@ -63,43 +66,33 @@ else:
     mg["diff"] = mg["actual"] - mg["forecast"]
     mg["rate"] = np.where(mg["forecast"] > 0, (mg["actual"] / mg["forecast"] * 100).round(1), 0)
 
-# ─────────────────────────────────────────────
-# [4] 대시보드 화면 구성
-st.title("📊 수요예측 대비 실적 대시보드")
+# 6. 메인 화면 구성
+st.title("📊 수요예측 vs 실적 분석")
 
-# 분석 요약 섹션 (분석 내용 추가)
-st.info(f"💡 **{sel_ym} 분석 요약:** " + 
-        (f"현재 실적이 예측 대비 양호합니다." if has_act and mg["rate"].mean() > 90 
-         else "실적 데이터가 아직 집계되지 않았거나 보완이 필요합니다."))
+# 📥 다운로드 버튼 섹션 (요청하신 기능)
+st.markdown('<div class="section-header">📥 데이터 내보내기</div>', unsafe_allow_html=True)
+c1, c2 = st.columns(2)
+with c1:
+    buf = io.BytesIO()
+    mg.to_csv(buf, index=False, encoding="utf-8-sig")
+    st.download_button(f"⬇️ {sel_ym} 필터 결과 다운로드 (CSV)", buf.getvalue(), f"report_{sel_ym}.csv", "text/csv")
+with c2:
+    # 전체 데이터 다운로드
+    all_buf = io.BytesIO()
+    pd.merge(f_df, a_df[['combo','actual']], on='combo', how='left').to_csv(all_buf, index=False, encoding="utf-8-sig")
+    st.download_button("⬇️ 전체 기간 원본 데이터 다운로드", all_buf.getvalue(), "total_data.csv", "text/csv")
 
-# ─────────────────────────────────────────────
-# [5] 데이터 다운로드 섹션 (요청하신 기능)
-st.divider()
-st.subheader("📥 데이터 내보내기")
-col1, col2 = st.columns(2)
+# 7. 상세 데이터 표 (HTML 표 스타일)
+st.markdown(f'<div class="section-header">{sel_ym} 상세 내역 (검색결과: {len(mg)}건)</div>', unsafe_allow_html=True)
 
-with col1:
-    # 전체 통합 데이터 다운로드
-    all_merge = pd.merge(f_df, a_df[["combo", "actual"]], on="combo", how="left").fillna(0)
-    buf_all = io.BytesIO()
-    all_merge.to_csv(buf_all, index=False, encoding="utf-8-sig")
-    st.download_button(
-        label="⬇️ 전체 기간 데이터 다운로드 (CSV)",
-        data=buf_all.getvalue(),
-        file_name="total_forecast_actual.csv",
-        mime="text/csv"
-    )
+# 표에 표시할 열 선택
+display_cols = ["brand", "series", "combo", "name", "supply", "forecast", "actual", "diff", "rate"]
+st.dataframe(mg[display_cols], use_container_width=True, hide_index=True)
 
-with col2:
-    # 현재 선택된 월 데이터 다운로드
-    buf_sel = io.BytesIO()
-    mg.to_csv(buf_sel, index=False, encoding="utf-8-sig")
-    st.download_button(
-        label=f"⬇️ {sel_ym} 데이터 다운로드 (CSV)",
-        data=buf_sel.getvalue(),
-        file_name=f"data_{sel_ym}.csv",
-        mime="text/csv"
-    )
-
-st.divider()
-# (이후 시각화 차트 코드들...)
+# 8. 간단한 요약 차트 (HTML에 있던 차트 느낌)
+if not mg.empty:
+    fig = go.Figure()
+    fig.add_trace(go.Bar(x=mg['series'].head(10), y=mg['forecast'].head(10), name='예측량'))
+    fig.add_trace(go.Bar(x=mg['series'].head(10), y=mg['actual'].head(10), name='실적량'))
+    fig.update_layout(barmode='group', template='plotly_dark', title="상위 10개 시리즈 비교")
+    st.plotly_chart(fig, use_container_width=True)
