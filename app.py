@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 #  페이지 설정
 # ══════════════════════════════════════════════
 st.set_page_config(
-    page_title="수요예측 모니터링",
+    page_title="수요예측 대시보드",
     page_icon="📦",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -278,7 +278,7 @@ def fmt_pct(v): return f"{v:.1f}%"
 with st.sidebar:
     st.markdown("""
     <div style="padding:20px 4px 4px 4px">
-        <div style="font-size:22px;font-weight:900;color:#F8FAFC;letter-spacing:-0.02em;">📦 수요예측 모니터링</div>
+        <div style="font-size:22px;font-weight:900;color:#F8FAFC;letter-spacing:-0.02em;">📦 수요예측</div>
         <div style="font-size:12px;color:#64748B;margin-top:4px;">Demand Forecast Dashboard</div>
     </div>""", unsafe_allow_html=True)
     st.markdown("---")
@@ -565,7 +565,7 @@ with tab1:
                 if row["달성률"]<90:    tag = '<span class="report-tag-bad">과소예측</span>'
                 elif row["달성률"]>110: tag = '<span class="report-tag-warn">과대예측</span>'
                 else:                  tag = '<span class="report-tag-ok">양호</span>'
-                html_r += f"&nbsp;&nbsp;{tag} <b>{row['series']}</b> 달성률 {row['달성률']:.1f}% (오차 {fmt_int(row['오차량'])}건)<br>"
+                html_r += f"&nbsp;&nbsp;{tag} <b>{row['series']}</b> 달성률 {row['달성률']:.1f}% (오차 {fmt_int(row['오차량'])}ea)<br>"
         if not under_s.empty:
             html_r += f"<br><b>⚠️ 과소예측 (&lt;90%)</b>: {', '.join(under_s['series'].tolist())}<br>"
         if not over_s.empty:
@@ -851,10 +851,9 @@ with tab4:
             best_brand  = brand_sum.loc[brand_sum["rate"].idxmax()]  if not brand_sum.empty else None
             worst_brand = brand_sum.loc[brand_sum["rate"].idxmin()]  if not brand_sum.empty else None
 
-            # 시리즈별 요약
-            sr_sum = (df_det2.groupby("series")
-                      .agg(forecast=("forecast","sum"), actual=("actual","sum"))
-                      .reset_index())
+            # 품목(단품) 단위 요약 — combo + name + series 기준
+            sr_sum = (df_det2.groupby(["combo","name","series"], as_index=False)
+                      .agg(forecast=("forecast","sum"), actual=("actual","sum")))
             sr_sum["rate"] = np.where(sr_sum["forecast"]>0,
                                       (sr_sum["actual"]/sr_sum["forecast"]*100).round(1), 0)
 
@@ -909,16 +908,34 @@ with tab4:
                         badge_cls, badge_txt = "badge-ok",     "근접"
                     else:
                         badge_cls, badge_txt = "badge-danger", "미달"
-                    sign = "+" if row["차이"] >= 0 else ""
-                    diff_c = "#059669" if row["차이"]>=0 else "#DC2626"
+                    sign    = "+" if row["차이"] >= 0 else ""
+                    diff_c  = "#059669" if row["차이"] >= 0 else "#DC2626"
+                    combo_str  = str(row["combo"])
+                    name_str   = str(row.get("name","")) if str(row.get("name","")) not in ("nan","") else "—"
+                    series_str = str(row.get("series",""))
                     st.markdown(
-                        f"<div class='an-row'>"
-                        f"<span class='an-badge {badge_cls}'>{badge_txt} {row['달성률(%)']:.0f}%</span>"
-                        f"<div><b style='color:#0F172A'>{row['series']}</b>"
-                        f"<span style='color:#94A3B8;font-size:12px;margin-left:8px'>{str(row['combo'])[:24]}</span><br>"
-                        f"<span style='color:#475569'>예측 {fmt_int(row['forecast'])} → 실적 {fmt_int(row['actual'])} </span>"
-                        f"<b style='color:{diff_c}'>({sign}{fmt_int(row['차이'])})</b></div>"
-                        f"</div>", unsafe_allow_html=True)
+                        f"<div class='an-row' style='align-items:flex-start;gap:12px;padding:14px 16px'>"
+                        f"<span class='an-badge {badge_cls}' style='margin-top:2px;flex-shrink:0'>{badge_txt} {row['달성률(%)']:.0f}%</span>"
+                        f"<div style='min-width:0;flex:1'>"
+                        # ① 단품코드 — 가장 크고 굵게, 색상 강조
+                        f"<div style='font-size:16px;font-weight:900;color:#1D4ED8;"
+                        f"letter-spacing:0.04em;margin-bottom:2px;font-family:\"DM Mono\",monospace'>"
+                        f"{combo_str}</div>"
+                        # ② 단품명칭 — 두 번째 강조, 진한 네이비
+                        f"<div style='font-size:13px;font-weight:700;color:#0F172A;"
+                        f"margin-bottom:5px;line-height:1.4'>{name_str}</div>"
+                        # ③ 시리즈 — 작은 회색 태그
+                        f"<div style='margin-bottom:6px'>"
+                        f"<span style='font-size:11px;background:#F1F5F9;color:#64748B;"
+                        f"border-radius:4px;padding:2px 7px;font-weight:600'>{series_str}</span>"
+                        f"</div>"
+                        # ④ 예측→실적 오차
+                        f"<div style='font-size:13px;color:#475569'>"
+                        f"예측 <b style='color:#374151'>{fmt_int(row['forecast'])}</b> → "
+                        f"실적 <b style='color:#374151'>{fmt_int(row['actual'])}</b>&nbsp;"
+                        f"<b style='color:{diff_c};font-size:14px'>({sign}{fmt_int(row['차이'])})</b>"
+                        f"</div>"
+                        f"</div></div>", unsafe_allow_html=True)
                 st.markdown('</div>', unsafe_allow_html=True)
 
             with col_b:
@@ -954,13 +971,23 @@ with tab4:
                     st.markdown("<div style='color:#94A3B8;font-size:14px;padding:8px'>초과 품목 없음</div>", unsafe_allow_html=True)
                 else:
                     for _, row in top3_over.iterrows():
+                        name_str   = str(row.get("name","")) if str(row.get("name","")) not in ("nan","") else "—"
+                        combo_str  = str(row["combo"])
+                        series_str = str(row.get("series",""))
                         st.markdown(
-                            f"<div class='an-row'>"
-                            f"<span class='an-badge badge-over'>+{fmt_int(row['차이'])}</span>"
-                            f"<div><b style='color:#0F172A'>{row['series']}</b>"
-                            f"<span style='color:#94A3B8;font-size:12px;margin-left:8px'>{str(row['combo'])[:20]}</span><br>"
-                            f"<span style='color:#475569'>예측 {fmt_int(row['forecast'])} → 실적 {fmt_int(row['actual'])}</span></div>"
-                            f"</div>", unsafe_allow_html=True)
+                            f"<div class='an-row' style='align-items:flex-start;gap:12px;padding:14px 16px'>"
+                            f"<span class='an-badge badge-over' style='margin-top:2px;flex-shrink:0'>+{fmt_int(row['차이'])}</span>"
+                            f"<div style='min-width:0;flex:1'>"
+                            f"<div style='font-size:15px;font-weight:900;color:#1D4ED8;"
+                            f"letter-spacing:0.04em;margin-bottom:2px;font-family:\"DM Mono\",monospace'>{combo_str}</div>"
+                            f"<div style='font-size:13px;font-weight:700;color:#0F172A;margin-bottom:5px;line-height:1.4'>{name_str}</div>"
+                            f"<div style='margin-bottom:6px'>"
+                            f"<span style='font-size:11px;background:#F1F5F9;color:#64748B;border-radius:4px;padding:2px 7px;font-weight:600'>{series_str}</span>"
+                            f"</div>"
+                            f"<div style='font-size:13px;color:#475569'>"
+                            f"예측 <b style='color:#374151'>{fmt_int(row['forecast'])}</b> → "
+                            f"실적 <b style='color:#374151'>{fmt_int(row['actual'])}</b></div>"
+                            f"</div></div>", unsafe_allow_html=True)
                 st.markdown('</div>', unsafe_allow_html=True)
 
             with col_d:
@@ -969,48 +996,86 @@ with tab4:
                     st.markdown("<div style='color:#94A3B8;font-size:14px;padding:8px'>미달 품목 없음</div>", unsafe_allow_html=True)
                 else:
                     for _, row in top3_under.iterrows():
+                        name_str   = str(row.get("name","")) if str(row.get("name","")) not in ("nan","") else "—"
+                        combo_str  = str(row["combo"])
+                        series_str = str(row.get("series",""))
                         st.markdown(
-                            f"<div class='an-row'>"
-                            f"<span class='an-badge badge-danger'>{fmt_int(row['차이'])}</span>"
-                            f"<div><b style='color:#0F172A'>{row['series']}</b>"
-                            f"<span style='color:#94A3B8;font-size:12px;margin-left:8px'>{str(row['combo'])[:20]}</span><br>"
-                            f"<span style='color:#475569'>예측 {fmt_int(row['forecast'])} → 실적 {fmt_int(row['actual'])}</span></div>"
-                            f"</div>", unsafe_allow_html=True)
+                            f"<div class='an-row' style='align-items:flex-start;gap:12px;padding:14px 16px'>"
+                            f"<span class='an-badge badge-danger' style='margin-top:2px;flex-shrink:0'>{fmt_int(row['차이'])}</span>"
+                            f"<div style='min-width:0;flex:1'>"
+                            f"<div style='font-size:15px;font-weight:900;color:#DC2626;"
+                            f"letter-spacing:0.04em;margin-bottom:2px;font-family:\"DM Mono\",monospace'>{combo_str}</div>"
+                            f"<div style='font-size:13px;font-weight:700;color:#0F172A;margin-bottom:5px;line-height:1.4'>{name_str}</div>"
+                            f"<div style='margin-bottom:6px'>"
+                            f"<span style='font-size:11px;background:#F1F5F9;color:#64748B;border-radius:4px;padding:2px 7px;font-weight:600'>{series_str}</span>"
+                            f"</div>"
+                            f"<div style='font-size:13px;color:#475569'>"
+                            f"예측 <b style='color:#374151'>{fmt_int(row['forecast'])}</b> → "
+                            f"실적 <b style='color:#374151'>{fmt_int(row['actual'])}</b></div>"
+                            f"</div></div>", unsafe_allow_html=True)
                 st.markdown('</div>', unsafe_allow_html=True)
 
-            # ── 시리즈 분포 (달성률 하위 & 상위 각 3개)
+            # ── 품목 단위 달성률 하위 & 상위
             st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
             col_e, col_f = st.columns(2)
 
             with col_e:
-                st.markdown('<div class="an-section"><div class="an-section-title">⚠️ 달성률 하위 시리즈</div>', unsafe_allow_html=True)
-                bot3_sr = sr_sum[sr_sum["forecast"]>0].nsmallest(5,"rate")
-                for _, row in bot3_sr.iterrows():
-                    pct = min(int(row["rate"]), 200)
+                st.markdown('<div class="an-section"><div class="an-section-title">⚠️ 달성률 하위 품목 TOP 5</div>', unsafe_allow_html=True)
+                bot5_item = sr_sum[sr_sum["forecast"] > 0].nsmallest(5, "rate")
+                for _, row in bot5_item.iterrows():
+                    pct      = min(int(row["rate"]), 200)
+                    name_str = str(row.get("name","")) if str(row.get("name","")) not in ("nan","") else "—"
                     st.markdown(
-                        f"<div class='an-row' style='display:block;padding:10px 14px'>"
-                        f"<div style='display:flex;justify-content:space-between;margin-bottom:5px'>"
-                        f"<b style='color:#0F172A'>{row['series']}</b>"
-                        f"<b style='color:#DC2626'>{row['rate']:.1f}%</b></div>"
-                        f"<div style='background:#F1F5F9;border-radius:4px;height:7px'>"
-                        f"<div style='width:{pct/2}%;height:7px;background:#F87171;border-radius:4px'></div></div>"
-                        f"<div style='font-size:12px;color:#94A3B8;margin-top:4px'>예측 {fmt_int(row['forecast'])} / 실적 {fmt_int(row['actual'])}</div>"
+                        f"<div class='an-row' style='display:block;padding:12px 14px'>"
+                        # ① 단품코드 + 달성률
+                        f"<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:3px'>"
+                        f"<b style='font-size:14px;color:#DC2626;letter-spacing:0.04em;"
+                        f"font-family:\"DM Mono\",monospace'>{str(row['combo'])}</b>"
+                        f"<b style='color:#DC2626;font-size:14px;flex-shrink:0;margin-left:8px'>{row['rate']:.1f}%</b>"
+                        f"</div>"
+                        # ② 단품명칭
+                        f"<div style='font-size:12px;font-weight:700;color:#0F172A;"
+                        f"margin-bottom:4px;line-height:1.4'>{name_str}</div>"
+                        # ③ 시리즈 태그
+                        f"<div style='margin-bottom:6px'>"
+                        f"<span style='font-size:11px;background:#F1F5F9;color:#64748B;"
+                        f"border-radius:4px;padding:2px 7px;font-weight:600'>{str(row.get('series',''))}</span>"
+                        f"</div>"
+                        # ④ 프로그레스 바
+                        f"<div style='background:#F1F5F9;border-radius:4px;height:6px;overflow:hidden'>"
+                        f"<div style='width:{pct/2}%;height:6px;background:#F87171;border-radius:4px'></div></div>"
+                        f"<div style='font-size:12px;color:#94A3B8;margin-top:4px'>"
+                        f"예측 {fmt_int(row['forecast'])} / 실적 {fmt_int(row['actual'])}</div>"
                         f"</div>", unsafe_allow_html=True)
                 st.markdown('</div>', unsafe_allow_html=True)
 
             with col_f:
-                st.markdown('<div class="an-section"><div class="an-section-title">✅ 달성률 상위 시리즈</div>', unsafe_allow_html=True)
-                top3_sr = sr_sum[sr_sum["forecast"]>0].nlargest(5,"rate")
-                for _, row in top3_sr.iterrows():
-                    pct = min(int(row["rate"]), 200)
+                st.markdown('<div class="an-section"><div class="an-section-title">✅ 달성률 상위 품목 TOP 5</div>', unsafe_allow_html=True)
+                top5_item = sr_sum[sr_sum["forecast"] > 0].nlargest(5, "rate")
+                for _, row in top5_item.iterrows():
+                    pct      = min(int(row["rate"]), 200)
+                    name_str = str(row.get("name","")) if str(row.get("name","")) not in ("nan","") else "—"
                     st.markdown(
-                        f"<div class='an-row' style='display:block;padding:10px 14px'>"
-                        f"<div style='display:flex;justify-content:space-between;margin-bottom:5px'>"
-                        f"<b style='color:#0F172A'>{row['series']}</b>"
-                        f"<b style='color:#059669'>{row['rate']:.1f}%</b></div>"
-                        f"<div style='background:#F1F5F9;border-radius:4px;height:7px'>"
-                        f"<div style='width:{pct/2}%;height:7px;background:#34D399;border-radius:4px'></div></div>"
-                        f"<div style='font-size:12px;color:#94A3B8;margin-top:4px'>예측 {fmt_int(row['forecast'])} / 실적 {fmt_int(row['actual'])}</div>"
+                        f"<div class='an-row' style='display:block;padding:12px 14px'>"
+                        # ① 단품코드 + 달성률
+                        f"<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:3px'>"
+                        f"<b style='font-size:14px;color:#059669;letter-spacing:0.04em;"
+                        f"font-family:\"DM Mono\",monospace'>{str(row['combo'])}</b>"
+                        f"<b style='color:#059669;font-size:14px;flex-shrink:0;margin-left:8px'>{row['rate']:.1f}%</b>"
+                        f"</div>"
+                        # ② 단품명칭
+                        f"<div style='font-size:12px;font-weight:700;color:#0F172A;"
+                        f"margin-bottom:4px;line-height:1.4'>{name_str}</div>"
+                        # ③ 시리즈 태그
+                        f"<div style='margin-bottom:6px'>"
+                        f"<span style='font-size:11px;background:#F1F5F9;color:#64748B;"
+                        f"border-radius:4px;padding:2px 7px;font-weight:600'>{str(row.get('series',''))}</span>"
+                        f"</div>"
+                        # ④ 프로그레스 바
+                        f"<div style='background:#F1F5F9;border-radius:4px;height:6px;overflow:hidden'>"
+                        f"<div style='width:{pct/2}%;height:6px;background:#34D399;border-radius:4px'></div></div>"
+                        f"<div style='font-size:12px;color:#94A3B8;margin-top:4px'>"
+                        f"예측 {fmt_int(row['forecast'])} / 실적 {fmt_int(row['actual'])}</div>"
                         f"</div>", unsafe_allow_html=True)
                 st.markdown('</div>', unsafe_allow_html=True)
 
