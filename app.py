@@ -278,7 +278,7 @@ def fmt_pct(v): return f"{v:.1f}%"
 with st.sidebar:
     st.markdown("""
     <div style="padding:20px 4px 4px 4px">
-        <div style="font-size:22px;font-weight:900;color:#F8FAFC;letter-spacing:-0.02em;">📦 수요예측</div>
+        <div style="font-size:22px;font-weight:900;color:#F8FAFC;letter-spacing:-0.02em;">📦 의자 수요예측 대비 실적 분석</div>
         <div style="font-size:12px;color:#64748B;margin-top:4px;">Demand Forecast Dashboard</div>
     </div>""", unsafe_allow_html=True)
     st.markdown("---")
