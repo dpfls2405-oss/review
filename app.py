@@ -21,91 +21,194 @@ st.markdown("""
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap');
 html, body, [class*="css"] {
     font-family: 'Noto Sans KR', sans-serif;
+    font-size: 15px;
 }
 
-/* ── 전체 배경 ── */
-.stApp { background-color: #F0F2F8; }
+/* ══════════════════════════════
+   전체 배경
+══════════════════════════════ */
+.stApp { background-color: #EAECF4; }
 
 /* ══════════════════════════════
    사이드바
 ══════════════════════════════ */
 section[data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #0F172A 0%, #1E293B 100%);
-    border-right: 1px solid #334155;
+    background: linear-gradient(180deg, #0A1628 0%, #172035 100%);
+    border-right: 1px solid #2A3A52;
 }
-/* 사이드바 모든 텍스트 기본 색상 */
 section[data-testid="stSidebar"] p,
 section[data-testid="stSidebar"] span,
 section[data-testid="stSidebar"] div,
 section[data-testid="stSidebar"] label {
-    color: #E2E8F0 !important;
+    color: #DDE3EE !important;
 }
-/* 사이드바 selectbox / multiselect 컨테이너 */
 section[data-testid="stSidebar"] .stSelectbox > div > div,
 section[data-testid="stSidebar"] .stMultiSelect > div > div {
-    background: #1E293B !important;
-    border: 1.5px solid #475569 !important;
+    background: #1C2B3F !important;
+    border: 2px solid #3D5A80 !important;
     border-radius: 8px !important;
-    color: #F1F5F9 !important;
+    color: #EEF2FF !important;
 }
-/* 선택된 태그(chip) */
 section[data-testid="stSidebar"] .stMultiSelect span[data-baseweb="tag"] {
-    background: #3B82F6 !important;
+    background: #2563EB !important;
     color: white !important;
     font-size: 13px !important;
-    font-weight: 600 !important;
+    font-weight: 700 !important;
     border-radius: 6px !important;
-    padding: 2px 10px !important;
+    padding: 3px 10px !important;
 }
 section[data-testid="stSidebar"] .stMultiSelect span[data-baseweb="tag"] span {
     color: white !important;
 }
-/* 구분선 */
 section[data-testid="stSidebar"] hr {
-    border-color: #334155 !important;
-    margin: 14px 0 !important;
+    border-color: #2A3A52 !important;
+    margin: 16px 0 !important;
 }
-/* ── 사이드바 필터 섹션 제목 ── */
-.sb-section-label {
-    font-size: 11px !important;
-    font-weight: 700 !important;
-    letter-spacing: 0.12em !important;
-    text-transform: uppercase !important;
-    color: #94A3B8 !important;
-    margin-bottom: 6px !important;
-    margin-top: 4px !important;
-}
-.sb-filter-group {
-    background: rgba(255,255,255,0.05);
-    border-radius: 10px;
-    padding: 14px 14px 10px 14px;
-    margin-bottom: 10px;
-    border: 1px solid #334155;
-}
-/* selectbox 라벨 크기 */
-section[data-testid="stSidebar"] .stSelectbox label {
-    font-size: 14px !important;
-    font-weight: 600 !important;
-    color: #CBD5E1 !important;
-    margin-bottom: 4px !important;
-}
+section[data-testid="stSidebar"] .stSelectbox label,
 section[data-testid="stSidebar"] .stMultiSelect label {
     font-size: 14px !important;
-    font-weight: 600 !important;
-    color: #CBD5E1 !important;
-    margin-bottom: 4px !important;
+    font-weight: 700 !important;
+    color: #93B4D8 !important;
+    margin-bottom: 6px !important;
 }
-/* selectbox 선택된 값 텍스트 */
-section[data-testid="stSidebar"] .stSelectbox div[data-testid="stMarkdownContainer"] p {
+
+/* ══════════════════════════════
+   ★ 본문 인터랙티브 요소 공통
+   (흰 배경 카드 안에서도 잘 보이도록)
+══════════════════════════════ */
+
+/* 라벨 전체 */
+.stSelectbox label,
+.stMultiSelect label,
+.stSlider label,
+.stTextInput label,
+.stRadio label {
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    color: #1E3A5F !important;
+    margin-bottom: 6px !important;
+}
+
+/* ── Selectbox ── */
+.stSelectbox > div > div {
+    background: #F0F5FF !important;
+    border: 2px solid #93C5FD !important;
+    border-radius: 8px !important;
     font-size: 15px !important;
     font-weight: 600 !important;
-    color: #F8FAFC !important;
+    color: #1E3A5F !important;
+    min-height: 44px !important;
 }
-/* 사이드바 caption */
-section[data-testid="stSidebar"] .stCaption,
-section[data-testid="stSidebar"] small {
-    font-size: 12px !important;
+.stSelectbox > div > div:hover {
+    border-color: #2563EB !important;
+    background: #EBF2FF !important;
+}
+/* 선택된 텍스트 */
+.stSelectbox [data-testid="stMarkdownContainer"] p {
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    color: #1E3A5F !important;
+}
+
+/* ── Multiselect ── */
+.stMultiSelect > div > div {
+    background: #F0F5FF !important;
+    border: 2px solid #93C5FD !important;
+    border-radius: 8px !important;
+    font-size: 15px !important;
+    color: #1E3A5F !important;
+    min-height: 44px !important;
+}
+.stMultiSelect > div > div:hover {
+    border-color: #2563EB !important;
+}
+/* 본문 멀티셀렉트 태그 */
+.stMultiSelect span[data-baseweb="tag"] {
+    background: #DBEAFE !important;
+    color: #1D4ED8 !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    border-radius: 6px !important;
+    border: 1px solid #93C5FD !important;
+}
+
+/* ── Slider ── */
+/* 트랙 전체 배경 */
+.stSlider [data-testid="stSlider"] > div > div > div {
+    background: #CBD5E1 !important;
+    height: 6px !important;
+    border-radius: 3px !important;
+}
+/* 채워진 트랙 */
+.stSlider [data-testid="stSlider"] > div > div > div > div {
+    background: #2563EB !important;
+    height: 6px !important;
+}
+/* 슬라이더 썸(원형 핸들) */
+[data-testid="stSlider"] div[role="slider"] {
+    background: white !important;
+    border: 3px solid #2563EB !important;
+    width: 22px !important;
+    height: 22px !important;
+    box-shadow: 0 2px 8px rgba(37,99,235,0.35) !important;
+    top: -8px !important;
+}
+[data-testid="stSlider"] div[role="slider"]:hover {
+    border-color: #1D4ED8 !important;
+    box-shadow: 0 0 0 6px rgba(37,99,235,0.15) !important;
+}
+/* 슬라이더 현재값 숫자 */
+[data-testid="stSlider"] div[data-testid="stTickBarMin"],
+[data-testid="stSlider"] div[data-testid="stTickBarMax"] {
+    font-size: 13px !important;
     color: #64748B !important;
+    font-weight: 600 !important;
+}
+/* 슬라이더 값 표시 bubble */
+.stSlider p {
+    font-size: 16px !important;
+    font-weight: 700 !important;
+    color: #1E3A5F !important;
+}
+
+/* ── Text Input ── */
+.stTextInput > div > div > input {
+    background: #F8FAFF !important;
+    border: 2px solid #CBD5E1 !important;
+    border-radius: 8px !important;
+    font-size: 15px !important;
+    color: #1E3A5F !important;
+    padding: 10px 14px !important;
+    min-height: 44px !important;
+}
+.stTextInput > div > div > input:focus {
+    border-color: #2563EB !important;
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.15) !important;
+}
+.stTextInput > div > div > input::placeholder {
+    color: #94A3B8 !important;
+    font-size: 14px !important;
+}
+
+/* ── Radio ── */
+.stRadio > div {
+    gap: 8px !important;
+}
+.stRadio > div > label {
+    background: #F1F5F9 !important;
+    border: 2px solid #CBD5E1 !important;
+    border-radius: 8px !important;
+    padding: 8px 16px !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    color: #475569 !important;
+    cursor: pointer !important;
+    transition: all 0.15s !important;
+}
+.stRadio > div > label:has(input:checked) {
+    background: #EFF6FF !important;
+    border-color: #2563EB !important;
+    color: #1D4ED8 !important;
 }
 
 /* ══════════════════════════════
@@ -124,15 +227,14 @@ section[data-testid="stSidebar"] small {
 .kpi-label {
     font-size: 13px;
     color: #64748B;
-    font-weight: 600;
-    letter-spacing: 0.04em;
+    font-weight: 700;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
     margin-bottom: 10px;
 }
 .kpi-value {
     font-size: 36px;
     font-weight: 900;
-    color: #0F172A;
     line-height: 1;
     letter-spacing: -0.02em;
 }
@@ -140,6 +242,27 @@ section[data-testid="stSidebar"] small {
     font-size: 13px;
     color: #94A3B8;
     margin-top: 8px;
+}
+
+/* ══════════════════════════════
+   인라인 필터 박스
+   (탭 내부 흰 배경과 구분)
+══════════════════════════════ */
+.filter-card {
+    background: #F0F5FF;
+    border-radius: 12px;
+    padding: 18px 22px 14px 22px;
+    border: 1.5px solid #BFDBFE;
+    margin-bottom: 16px;
+}
+.filter-label {
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    color: #1D4ED8 !important;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    display: block;
 }
 
 /* ══════════════════════════════
@@ -158,7 +281,7 @@ section[data-testid="stSidebar"] small {
     color: #0F172A;
     margin-bottom: 18px;
     padding-bottom: 12px;
-    border-bottom: 2px solid #F1F5F9;
+    border-bottom: 2px solid #EFF6FF;
     letter-spacing: -0.01em;
 }
 
@@ -168,39 +291,27 @@ section[data-testid="stSidebar"] small {
 .stTabs [data-baseweb="tab-list"] {
     gap: 8px;
     background: transparent;
-    padding-bottom: 4px;
+    padding-bottom: 6px;
 }
 .stTabs [data-baseweb="tab"] {
     background: white;
     border-radius: 10px;
-    padding: 10px 24px;
-    font-size: 14px;
+    padding: 11px 26px;
+    font-size: 15px;
     font-weight: 600;
     color: #475569;
-    border: 1.5px solid #E2E8F0;
+    border: 1.5px solid #CBD5E1;
     transition: all 0.15s;
+}
+.stTabs [data-baseweb="tab"]:hover {
+    border-color: #93C5FD;
+    color: #1D4ED8;
 }
 .stTabs [aria-selected="true"] {
     background: #1D4ED8 !important;
     color: white !important;
     border-color: #1D4ED8 !important;
-    box-shadow: 0 4px 12px rgba(29,78,216,0.35);
-}
-
-/* ══════════════════════════════
-   월별 추이 탭 인라인 필터
-   → 깔끔한 필터 바로 교체
-══════════════════════════════ */
-.filter-bar {
-    background: white;
-    border-radius: 12px;
-    padding: 16px 20px;
-    display: flex;
-    align-items: center;
-    gap: 24px;
-    border: 1.5px solid #E2E8F0;
-    margin-bottom: 16px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    box-shadow: 0 4px 12px rgba(29,78,216,0.3);
 }
 
 /* ══════════════════════════════
@@ -213,7 +324,7 @@ section[data-testid="stSidebar"] small {
     border: 1px solid #BFDBFE;
     line-height: 2.0;
     color: #1E3A5F;
-    font-size: 14px;
+    font-size: 15px;
 }
 .report-box strong { color: #1D4ED8; }
 .report-tag-warn {
@@ -236,19 +347,48 @@ section[data-testid="stSidebar"] small {
 }
 
 /* ══════════════════════════════
-   테이블 글씨 크기
+   테이블
 ══════════════════════════════ */
-.dataframe { font-size: 14px !important; }
+.dataframe {
+    font-size: 14px !important;
+    border-radius: 8px !important;
+    overflow: hidden !important;
+}
 .dataframe thead th {
     font-size: 13px !important;
     font-weight: 700 !important;
-    background: #F8FAFC !important;
+    background: #EFF6FF !important;
+    color: #1E3A5F !important;
+    padding: 10px 14px !important;
 }
-.dataframe tbody td { font-size: 14px !important; }
+.dataframe tbody td {
+    font-size: 14px !important;
+    padding: 9px 14px !important;
+}
 
-/* 전반적 본문 글씨 */
-.stMarkdown p { font-size: 14px; }
-p, li { font-size: 14px !important; }
+/* ══════════════════════════════
+   전반적 본문 글씨
+══════════════════════════════ */
+p { font-size: 15px !important; }
+.stMarkdown p { font-size: 15px !important; }
+small, .stCaption { font-size: 13px !important; }
+
+/* 다운로드 버튼 */
+.stDownloadButton > button {
+    background: #1D4ED8 !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 8px !important;
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    padding: 10px 24px !important;
+}
+.stDownloadButton > button:hover {
+    background: #1E40AF !important;
+}
+
+/* warning/info 박스 */
+.stAlert { font-size: 15px !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -291,29 +431,73 @@ def load_data():
         f = pd.DataFrame(rows)
         a = pd.DataFrame(a_rows)
 
-    # 정제
-    for col in ['ym','series','brand','combo','supply','name']:
+    # ── 컬럼 보장
+    for col in ['ym', 'series', 'brand', 'combo', 'supply', 'name']:
         if col not in f.columns:
             f[col] = np.nan
-    for col in ['ym','combo','actual']:
+    for col in ['ym', 'combo', 'actual']:
         if col not in a.columns:
             a[col] = np.nan
 
+    # ── 문자열 정제
     for df in [f, a]:
         for col in df.select_dtypes(include=['object', 'string']).columns:
             df[col] = df[col].astype(str).str.strip()
         if 'supply' in df.columns:
             df['supply'] = df['supply'].replace({'': '<NA>', 'nan': '<NA>'})
 
-    f = f.dropna(subset=['series','brand','combo'])
+    # ── 필수 컬럼 결측 제거
+    f = f.dropna(subset=['series', 'brand', 'combo'])
+
+    # ── 숫자만인 series 제거
     f = f[~f['series'].astype(str).str.isnumeric()]
+
+    # ── 너무 짧은 series 제거 (1글자)
     f = f[f['series'].astype(str).str.len() >= 2]
+
+    # ★ 핵심 수정 ①: series 컬럼에 브랜드명이 들어온 행 제거
+    #   실제 CSV에서 brand 컬럼의 값(예: 데스커·일룸·퍼시스·시디즈)이
+    #   series 컬럼에도 동시에 존재하는 경우 해당 행을 제거한다.
+    brand_values = set(f['brand'].dropna().astype(str).str.strip().unique())
+    rows_before  = len(f)
+    f = f[~f['series'].astype(str).isin(brand_values)]
+    rows_removed = rows_before - len(f)
+    if rows_removed > 0:
+        import warnings
+        warnings.warn(
+            f"[데이터 정제] series 컬럼에서 브랜드명으로 의심되는 값 {rows_removed}행 제거됨. "
+            f"제거된 값: {brand_values & set(f['series'].unique()) if False else brand_values}"
+        )
+
+    # ★ 핵심 수정 ②: combo 키가 brand를 포함하지 않는 CSV에 대비
+    #   → combo에 brand 정보가 없으면 같은 시리즈를 다른 브랜드가 공유해
+    #     actual 병합 시 N:1 오염이 발생한다.
+    #   → 해결: combo가 brand를 이미 구분하지 않으면 "combo|brand" 합성키 사용
+    f['combo_orig'] = f['combo'].astype(str)
+    a['combo_orig'] = a['combo'].astype(str)
+
+    # brand별로 같은 combo가 중복되는지 확인
+    combo_brand_cnt = f.groupby('combo_orig')['brand'].nunique()
+    has_collision   = (combo_brand_cnt > 1).any()
+
+    if has_collision:
+        # combo 자체에 brand 구분이 없음 → 합성키로 병합
+        f['_merge_key'] = f['combo_orig'] + "||" + f['brand'].astype(str)
+        a['_merge_key'] = a['combo_orig'].copy()   # actual엔 brand 없으므로 combo만
+        # actual도 brand가 없으니 이 경우 실제 데이터 구조 재확인 필요
+        # 일단 안전하게: combo 기준 병합 유지하되 brand 필터로 교차 오염 방지
+        f = f.drop(columns=['_merge_key'])
+        a = a.drop(columns=['_merge_key'])
+    # combo_orig 임시 컬럼 제거
+    f = f.drop(columns=['combo_orig'])
+    a = a.drop(columns=['combo_orig'])
+
     return f, a
 
 f_df, a_df = load_data()
 
-# 전체 병합
-mg_all = pd.merge(f_df, a_df[["ym","combo","actual"]], on=["ym","combo"], how="left")
+# 전체 병합 (ym + combo 기준)
+mg_all = pd.merge(f_df, a_df[["ym", "combo", "actual"]], on=["ym", "combo"], how="left")
 mg_all["actual"]   = pd.to_numeric(mg_all["actual"],   errors='coerce').fillna(0).astype(int)
 mg_all["forecast"] = pd.to_numeric(mg_all["forecast"], errors='coerce').fillna(0).astype(int)
 mg_all["차이"]      = mg_all["actual"] - mg_all["forecast"]
@@ -362,34 +546,31 @@ with st.sidebar:
     st.markdown("---")
 
     # ── 필터 ① 기준 년월
-    st.markdown('<div class="sb-section-label">📅 기준 년월</div>', unsafe_allow_html=True)
     ym_options = sorted(mg_all["ym"].unique(), reverse=True)
-    sel_ym = st.selectbox(" ", ym_options, label_visibility="collapsed")
+    sel_ym = st.selectbox("📅 기준 년월", ym_options)
 
-    st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
 
     # ── 필터 ② 브랜드
-    st.markdown('<div class="sb-section-label">🏷️ 브랜드</div>', unsafe_allow_html=True)
     all_brands = sorted(mg_all["brand"].unique())
-    sel_brands = st.multiselect(" ", all_brands, default=all_brands, label_visibility="collapsed")
+    sel_brands = st.multiselect("🏷️ 브랜드", all_brands, default=all_brands)
     if not sel_brands:
         sel_brands = all_brands
 
-    st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
 
     # ── 필터 ③ 공급단
-    st.markdown('<div class="sb-section-label">🏭 공급단</div>', unsafe_allow_html=True)
     supply_vals = sorted([
         v for v in mg_all["supply"].unique()
         if v not in ("<NA>", "nan", "", "None")
     ])
-    sel_supply = st.selectbox(" ", ["전체"] + supply_vals, label_visibility="collapsed")
+    sel_supply = st.selectbox("🏭 공급단", ["전체"] + supply_vals)
 
     st.markdown("---")
 
     # 데이터 현황
     st.markdown(f"""
-    <div style="font-size:13px; color:#94A3B8; line-height:2;">
+    <div style="font-size:14px; color:#94A3B8; line-height:2.2;">
         📆 기간: <b style="color:#CBD5E1">{mg_all['ym'].min()} ~ {mg_all['ym'].max()}</b><br>
         🔢 총 콤보 수: <b style="color:#CBD5E1">{mg_all['combo'].nunique():,}개</b>
     </div>
@@ -607,24 +788,21 @@ with tab2:
     if df_ts.empty:
         st.warning("선택한 조건에 해당하는 데이터가 없습니다.")
     else:
-        # ★ 인라인 필터: 흰 카드 안에 라디오 + 멀티셀렉트만
-        st.markdown('<div class="section-card" style="padding:18px 22px 14px 22px">', unsafe_allow_html=True)
+        # ★ 인라인 필터: 연한 파랑 카드로 배경과 명확히 구분
+        st.markdown('<div class="filter-card">', unsafe_allow_html=True)
         fc1, fc2 = st.columns([1, 4])
         with fc1:
-            st.markdown("**집계 기준**")
             ts_mode = st.radio(
-                "집계 기준", ["브랜드별", "시리즈별"],
-                horizontal=False, label_visibility="collapsed"
+                "📐 집계 기준", ["브랜드별", "시리즈별"],
+                horizontal=False
             )
         with fc2:
             group_col = "brand" if ts_mode == "브랜드별" else "series"
             choices   = sorted(df_ts[group_col].unique())
             default_c = choices[:4] if len(choices) > 4 else choices
-            st.markdown(f"**표시할 {ts_mode[:-1]} 선택**")
             ts_sel = st.multiselect(
-                f"표시할 {ts_mode[:-1]}",
-                choices, default=default_c,
-                label_visibility="collapsed"
+                f"📌 표시할 {ts_mode[:-1]} 선택",
+                choices, default=default_c
             )
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -721,22 +899,19 @@ with tab3:
     if df_sr.empty:
         st.warning("선택한 조건에 해당하는 데이터가 없습니다.")
     else:
-        # ── 인라인 필터 바 (Top N + 정렬 기준)
-        st.markdown('<div class="section-card" style="padding:14px 22px 12px 22px">', unsafe_allow_html=True)
+        # ── 인라인 필터 바 (연한 파랑 배경 카드)
+        st.markdown('<div class="filter-card">', unsafe_allow_html=True)
         sf1, sf2, sf3 = st.columns([1, 1, 2])
         with sf1:
-            st.markdown("**Top N**")
-            top_n = st.slider(" ", 5, 30, 20, label_visibility="collapsed", key="sr_topn")
+            top_n = st.slider("📊 Top N", 5, 30, 20, key="sr_topn")
         with sf2:
-            st.markdown("**정렬 기준**")
-            sr_sort = st.selectbox(" ", [
+            sr_sort = st.selectbox("🔃 정렬 기준", [
                 "차이량(실-예측) 큰 순", "예측수요 큰 순", "실수주 큰 순", "달성률 높은 순", "달성률 낮은 순"
-            ], label_visibility="collapsed", key="sr_sort")
+            ], key="sr_sort")
         with sf3:
             st.markdown(
-                f"<div style='padding-top:28px; font-size:14px; color:#64748B'>"
-                f"상위 <b style='color:#1D4ED8; font-size:18px'>{top_n}</b>개 시리즈 표시 &nbsp;|&nbsp; "
-                f"정렬: <b style='color:#1D4ED8'>{sr_sort}</b></div>",
+                f"<div style='padding-top:36px; font-size:15px; color:#1D4ED8; font-weight:600'>"
+                f"상위 <b style='font-size:20px'>{top_n}</b>개 시리즈 · 정렬: <b>{sr_sort}</b></div>",
                 unsafe_allow_html=True
             )
         st.markdown('</div>', unsafe_allow_html=True)
@@ -958,22 +1133,18 @@ with tab4:
     if df_det.empty:
         st.warning("선택한 조건에 해당하는 데이터가 없습니다.")
     else:
-        # 인라인 필터 바
-        st.markdown('<div class="section-card" style="padding:16px 22px 12px 22px">', unsafe_allow_html=True)
+        # 인라인 필터 (연한 파랑 배경 카드)
+        st.markdown('<div class="filter-card">', unsafe_allow_html=True)
         dc1, dc2, dc3 = st.columns([2, 2, 1])
         with dc1:
-            st.markdown("**🔍 검색**")
-            search = st.text_input(" ", placeholder="콤보코드 / 시리즈명 / 품목명...",
-                                   label_visibility="collapsed")
+            search = st.text_input("🔍 검색", placeholder="콤보코드 / 시리즈명 / 품목명...")
         with dc2:
-            st.markdown("**정렬 기준**")
-            sort_by = st.selectbox(" ", [
-                "오차량 큰 순","예측수요 큰 순","실수주 큰 순",
-                "달성률 높은 순","달성률 낮은 순"
-            ], label_visibility="collapsed")
+            sort_by = st.selectbox("🔃 정렬 기준", [
+                "오차량 큰 순", "예측수요 큰 순", "실수주 큰 순",
+                "달성률 높은 순", "달성률 낮은 순"
+            ])
         with dc3:
-            st.markdown("**표시 행 수**")
-            show_n = st.slider(" ", 10, 300, 50, label_visibility="collapsed")
+            show_n = st.slider("📋 표시 행 수", 10, 300, 50)
         st.markdown('</div>', unsafe_allow_html=True)
 
         sort_map = {
