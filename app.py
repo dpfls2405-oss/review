@@ -1,4 +1,4 @@
-숭import streamlit as st
+import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 #  페이지 설정
 # ══════════════════════════════════════════════
 st.set_page_config(
-    page_title="의자 수요 예측 모니터링",
+    page_title="수요예측 모니터링",
     page_icon="📦",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -278,7 +278,7 @@ def fmt_pct(v): return f"{v:.1f}%"
 with st.sidebar:
     st.markdown("""
     <div style="padding:20px 4px 4px 4px">
-        <div style="font-size:22px;font-weight:900;color:#F8FAFC;letter-spacing:-0.02em;">📦 의자 수요 예측 모니터링</div>
+        <div style="font-size:22px;font-weight:900;color:#F8FAFC;letter-spacing:-0.02em;">📦 수요예측 모니터링</div>
         <div style="font-size:12px;color:#64748B;margin-top:4px;">Demand Forecast Dashboard</div>
     </div>""", unsafe_allow_html=True)
     st.markdown("---")
