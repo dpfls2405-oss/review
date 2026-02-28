@@ -2,447 +2,682 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
+import plotly.express as px
 
-# -----------------------
-# 페이지 설정 및 공통 스타일
-# -----------------------
-st.set_page_config(page_title="수요예측 대시보드", page_icon="📈", layout="wide")
+# ══════════════════════════════════════════════
+#  페이지 설정
+# ══════════════════════════════════════════════
+st.set_page_config(
+    page_title="수요예측 대시보드",
+    page_icon="📦",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
 
+# ══════════════════════════════════════════════
+#  전역 CSS
+# ══════════════════════════════════════════════
 st.markdown("""
 <style>
-.metric-card { background-color:#1E293B; border-radius:10px; padding:14px; color:#fff; text-align:center; }
-.metric-label { font-size:13px; color:#94A3B8; }
-.metric-value { font-size:22px; font-weight:700; }
-.metric-sub { font-size:11px; color:#94A3B8; }
-.analysis-box { background:#F8FAFC; border-radius:10px; padding:18px; border:1px solid #E2E8F0; color:#0f172a; }
-.item-card { background:#fff; padding:12px; border-radius:8px; border:1px solid #E2E8F0; margin-top:10px; }
-code { background:#f1f5f9; padding:2px 6px; border-radius:4px; }
+/* ── 폰트 ── */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap');
+html, body, [class*="css"] { font-family: 'Noto Sans KR', sans-serif; }
+
+/* ── 전체 배경 ── */
+.stApp { background-color: #F4F6FA; }
+
+/* ── 사이드바 ── */
+section[data-testid="stSidebar"] {
+    background-color: #1B2333;
+}
+section[data-testid="stSidebar"] * { color: #CDD6F4 !important; }
+section[data-testid="stSidebar"] .stSelectbox label,
+section[data-testid="stSidebar"] .stMultiSelect label { color: #89B4FA !important; font-size: 12px; }
+section[data-testid="stSidebar"] hr { border-color: #313244 !important; }
+
+/* ── KPI 카드 ── */
+.kpi-wrap {
+    background: white;
+    border-radius: 14px;
+    padding: 22px 24px;
+    border-left: 4px solid;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    height: 100%;
+}
+.kpi-label { font-size: 12px; color: #6B7280; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 8px; }
+.kpi-value { font-size: 32px; font-weight: 700; color: #111827; line-height: 1; }
+.kpi-sub   { font-size: 12px; color: #9CA3AF; margin-top: 6px; }
+.kpi-delta-pos { color: #10B981; font-weight: 600; }
+.kpi-delta-neg { color: #F87171; font-weight: 600; }
+
+/* ── 섹션 카드 ── */
+.section-card {
+    background: white;
+    border-radius: 14px;
+    padding: 24px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    margin-bottom: 16px;
+}
+.section-title {
+    font-size: 15px; font-weight: 700; color: #1F2937;
+    margin-bottom: 16px; padding-bottom: 10px;
+    border-bottom: 2px solid #F3F4F6;
+}
+
+/* ── 분석 리포트 박스 ── */
+.report-box {
+    background: linear-gradient(135deg, #EFF6FF 0%, #F0FDF4 100%);
+    border-radius: 12px; padding: 24px;
+    border: 1px solid #BFDBFE; line-height: 1.9; color: #1E3A5F;
+    font-size: 14px;
+}
+.report-box strong { color: #1D4ED8; }
+.report-tag-warn { background:#FEF9C3; color:#92400E; padding:2px 8px; border-radius:99px; font-size:11px; font-weight:600; }
+.report-tag-ok   { background:#D1FAE5; color:#065F46; padding:2px 8px; border-radius:99px; font-size:11px; font-weight:600; }
+.report-tag-bad  { background:#FEE2E2; color:#991B1B; padding:2px 8px; border-radius:99px; font-size:11px; font-weight:600; }
+
+/* ── 탭 ── */
+.stTabs [data-baseweb="tab-list"] { gap: 8px; background: transparent; }
+.stTabs [data-baseweb="tab"] {
+    background: white; border-radius: 8px; padding: 8px 20px;
+    font-size: 13px; font-weight: 500; color: #6B7280;
+    border: 1px solid #E5E7EB;
+}
+.stTabs [aria-selected="true"] {
+    background: #1D4ED8 !important; color: white !important; border-color: #1D4ED8 !important;
+}
+
+/* ── 테이블 ── */
+.dataframe thead th { background: #F8FAFC !important; font-size: 12px !important; }
+.dataframe tbody td { font-size: 13px !important; }
+
+/* ── 필터 레이블 강조 ── */
+.filter-title {
+    font-size: 11px; font-weight: 700; color: #89B4FA;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    margin-bottom: 4px;
+}
 </style>
 """, unsafe_allow_html=True)
 
-# -----------------------
-# 데이터 로드 및 정제
-# -----------------------
+
+# ══════════════════════════════════════════════
+#  데이터 로드
+# ══════════════════════════════════════════════
 @st.cache_data
 def load_data():
     try:
         f = pd.read_csv("forecast_data.csv", dtype={"combo": str})
-        a = pd.read_csv("actual_data.csv", dtype={"combo": str})
+        a = pd.read_csv("actual_data.csv",   dtype={"combo": str})
     except Exception:
-        # 테스트용 더미 데이터 (파일 없을 때)
-        dates = ["2026-02","2026-01","2025-12","2025-11"]
-        brands = ["시디즈","퍼시스","일룸","데스커"]
-        supplies = ["시디즈제품","의자양지상품","베트남제품", None]
-        rows = []
+        np.random.seed(7)
+        dates  = ["2025-06","2025-07","2025-08","2025-09",
+                  "2025-10","2025-11","2025-12","2026-01","2026-02"]
+        brands = ["데스커", "일룸", "퍼시스", "시디즈"]
+        series_list = ["ACCESSORY","IBLE","SPOON","SODA",
+                       "T60","RINGO","T20","GX","AROUND","PLT"]
+        supply_pool = ['시디즈제품','의자양지상품','베트남제품']
+        rows, a_rows = [], []
         for ym in dates:
             for b in brands:
-                for s in ["IBLE","T60","RINGO","ACCESSORY","T20"]:
+                for s in series_list:
+                    sup = np.random.choice(supply_pool + [np.nan], p=[0.28,0.28,0.28,0.16])
                     rows.append({
-                        "ym": ym,
-                        "brand": b,
-                        "series": s,
-                        "combo": f"{s[:6]}-{b[:2]}",
-                        "name": f"{s} 품목명",
-                        "forecast": np.random.randint(50, 3000),
-                        "supply": np.random.choice(supplies, p=[0.35,0.25,0.25,0.15])
+                        'ym': ym, 'brand': b, 'series': s,
+                        'combo': f"{s[:6]}-{b[:2]}",
+                        'name': f"{b} {s}",
+                        'forecast': int(np.random.randint(200, 4000)),
+                        'supply': sup
+                    })
+                    a_rows.append({
+                        'ym': ym,
+                        'combo': f"{s[:6]}-{b[:2]}",
+                        'actual': max(0, int(np.random.normal(1800, 900)))
                     })
         f = pd.DataFrame(rows)
-        a_rows = []
-        for ym in dates:
-            for b in brands:
-                for s in ["IBLE","T60","RINGO","ACCESSORY","T20"]:
-                    a_rows.append({"ym": ym, "combo": f"{s[:6]}-{b[:2]}", "actual": max(0, int(np.random.normal(400, 300)))})
         a = pd.DataFrame(a_rows)
 
-    # 기본 정제: 문자열 정리, 시리즈 숫자 제거
-    def clean(df):
-        for c in df.select_dtypes(include=['object']).columns:
-            df[c] = df[c].astype(str).str.strip()
-        # supply 결측은 NaN으로 유지 (사용자 요청: '기타' 제거)
-        df['supply'] = df['supply'].replace({'nan': np.nan, 'None': np.nan})
-        # series 숫자형 제거
-        df = df[~df['series'].str.isnumeric()]
-        df = df[df['series'].str.len() >= 2]
-        return df
+    # ── 정제
+    for col in ['ym','series','brand','combo','supply','name']:
+        if col not in f.columns:
+            f[col] = np.nan
+    for col in ['ym','combo','actual']:
+        if col not in a.columns:
+            a[col] = np.nan
 
-    return clean(f), clean(a)
+    for df in [f, a]:
+        for col in df.select_dtypes(include=["object","string"]).columns:
+            df[col] = df[col].astype(str).str.strip()
+        if 'supply' in df.columns:
+            df['supply'] = df['supply'].replace({'':'<NA>','nan':'<NA>'})
+
+    f = f.dropna(subset=['series','brand','combo'])
+    f = f[~f['series'].astype(str).str.isnumeric()]
+    f = f[f['series'].astype(str).str.len() >= 2]
+    return f, a
 
 f_df, a_df = load_data()
 
-# -----------------------
-# 공통 병합 및 지표 계산
-# -----------------------
+# ── 전체 병합
 mg_all = pd.merge(f_df, a_df[["ym","combo","actual"]], on=["ym","combo"], how="left")
-mg_all["actual"] = mg_all["actual"].fillna(0).astype(int)
-mg_all["forecast"] = mg_all["forecast"].fillna(0).astype(int)
-mg_all["차이"] = mg_all["actual"] - mg_all["forecast"]
-mg_all["오차량"] = mg_all["차이"].abs()
-mg_all["달성률(%)"] = np.where(mg_all["forecast"] > 0, (mg_all["actual"] / mg_all["forecast"] * 100).round(1), 0.0)
+mg_all["actual"]    = pd.to_numeric(mg_all["actual"],   errors='coerce').fillna(0).astype(int)
+mg_all["forecast"]  = pd.to_numeric(mg_all["forecast"], errors='coerce').fillna(0).astype(int)
+mg_all["차이"]       = mg_all["actual"] - mg_all["forecast"]
+mg_all["오차량"]     = mg_all["차이"].abs()
+mg_all["달성률(%)"]  = np.where(
+    mg_all["forecast"] > 0,
+    (mg_all["actual"] / mg_all["forecast"] * 100).round(1), 0
+)
 
-# -----------------------
-# 사이드바: 간결하고 직관적인 필터 (모든 탭에서 사용)
-# - 모든 필터는 expander로 묶어 탭별로 접을 수 있게 구성
-# -----------------------
-st.sidebar.title("필터 설정")
+# ── 날짜 파싱
+try:
+    mg_all["ym_dt"] = pd.to_datetime(mg_all["ym"] + "-01")
+except Exception:
+    mg_all["ym_dt"] = mg_all["ym"]
 
-with st.sidebar.expander("공통 필터", expanded=True):
-    sel_ym = st.selectbox("기준 년월", sorted(f_df["ym"].unique(), reverse=True))
-    all_brands = sorted(f_df["brand"].dropna().unique().tolist())
-    sel_br = st.multiselect("브랜드 선택", all_brands, default=all_brands)
 
-# 공급단 옵션: 결측값(NaN)은 목록에서 제외 (요청대로 '기타' 없음)
-supply_values = []
-if 'supply' in f_df.columns:
-    supply_values = sorted(f_df['supply'].dropna().unique().tolist())
+# ══════════════════════════════════════════════
+#  사이드바 — 필터 3개만
+# ══════════════════════════════════════════════
+with st.sidebar:
+    st.markdown("## 📦 수요예측")
+    st.markdown("---")
 
-with st.sidebar.expander("메인 대시보드 필터", expanded=True):
-    st.write("메인 탭에 적용되는 필터입니다.")
-    sel_supply_main = st.selectbox("공급단 선택 (메인)", ["전체"] + supply_values, index=0)
-    # 시리즈 선택: 브랜드 선택에 따라 동적
-    available_series = sorted(f_df[f_df['brand'].isin(sel_br)]['series'].dropna().unique().tolist())
-    if len(available_series) == 0:
-        st.info("선택된 브랜드에 시리즈 데이터가 없습니다.")
-        sel_sr_main = []
-    else:
-        # 적은 수면 전체 선택, 많으면 검색 + 기본 상위 선택
-        if len(available_series) <= 30:
-            sel_sr_main = st.multiselect("시리즈 선택 (메인)", available_series, default=available_series)
-        else:
-            search_series_main = st.text_input("시리즈 검색 (메인)")
-            top_default = 20
-            series_rank = f_df[f_df['brand'].isin(sel_br)].groupby('series')['forecast'].sum().sort_values(ascending=False).head(top_default).index.tolist()
-            if search_series_main:
-                filtered = [s for s in available_series if search_series_main.lower() in s.lower()]
-                sel_sr_main = st.multiselect("검색 결과에서 선택 (메인)", filtered, default=filtered[:top_default])
-            else:
-                sel_sr_main = st.multiselect("시리즈 선택 (메인 기본 상위)", available_series, default=series_rank)
-    sort_metric_main = st.selectbox("정렬 지표 (메인)", ["오차 절대값 큰 순","차이(실-예측) 큰 순","실수주량 큰 순","예측수요 큰 순","달성률 큰 순"])
-    top_n_main = st.slider("Top N 표시 수 (메인)", 5, 50, 10)
-    search_term_main = st.text_input("검색 (메인: 단품코드/명칭)")
+    # 1. 기준 년월
+    ym_options = sorted(mg_all["ym"].unique(), reverse=True)
+    sel_ym = st.selectbox("📅 기준 년월", ym_options)
 
-with st.sidebar.expander("시계열 추이 필터", expanded=False):
-    ts_mode = st.radio("표시 기준 (시계열)", ("브랜드별","시리즈별"))
-    ts_choices = sorted(mg_all['brand'].unique()) if ts_mode == "브랜드별" else sorted(mg_all['series'].unique())
-    ts_target = st.multiselect("표시할 항목 (시계열)", ts_choices, default=None)
+    st.markdown("---")
 
-with st.sidebar.expander("시리즈 상세 필터", expanded=False):
-    sel_brand_series = st.selectbox("브랜드 선택 (시리즈 상세)", ["전체"] + all_brands, index=0)
-    sel_supply_series = st.selectbox("공급단 선택 (시리즈 상세)", ["전체"] + supply_values, index=0)
-    top_n_series = st.slider("표시할 시리즈 수 (Top N)", 5, 50, 20)
+    # 2. 브랜드
+    all_brands = sorted(mg_all["brand"].unique())
+    sel_brands = st.multiselect("🏷️ 브랜드", all_brands, default=all_brands)
 
-with st.sidebar.expander("수주대비 실적 분석 필터", expanded=False):
-    perf_threshold_low = st.number_input("과소예측 기준 (달성률 미만 %)", value=90, min_value=1, max_value=100)
-    perf_threshold_high = st.number_input("과대예측 기준 (달성률 초과 %)", value=110, min_value=100, max_value=1000)
+    st.markdown("---")
 
-# -----------------------
-# 탭 구성 (메인 탭을 맨 앞에)
-# -----------------------
-tab_main, tab_ts, tab_series, tab_all, tab_perf = st.tabs([
-    "🏠 메인 대시보드", "📈 시계열 추이", "🔎 시리즈 상세", "📋 전체 데이터", "🧾 수주대비 실적 분석"
+    # 3. 공급단
+    supply_vals = sorted([v for v in mg_all["supply"].unique() if v not in ("<NA>", "nan", "")])
+    sel_supply = st.selectbox("🏭 공급단", ["전체"] + supply_vals)
+
+    st.markdown("---")
+    st.caption(f"데이터 기간: {mg_all['ym'].min()} ~ {mg_all['ym'].max()}")
+    st.caption(f"총 콤보 수: {mg_all['combo'].nunique():,}개")
+
+
+# ══════════════════════════════════════════════
+#  공통 필터 적용 함수
+# ══════════════════════════════════════════════
+def apply_filters(df, ym=None, brands=None, supply=None):
+    d = df.copy()
+    if ym:
+        d = d[d["ym"] == ym]
+    if brands:
+        d = d[d["brand"].isin(brands)]
+    if supply and supply != "전체":
+        d = d[d["supply"] == supply]
+    return d
+
+def fmt_int(v):
+    return f"{int(v):,}"
+
+def fmt_pct(v):
+    return f"{v:.1f}%"
+
+def delta_color(v):
+    if v > 0:
+        return "kpi-delta-pos"
+    elif v < 0:
+        return "kpi-delta-neg"
+    return ""
+
+
+# ══════════════════════════════════════════════
+#  탭 구성  (4개로 축소)
+# ══════════════════════════════════════════════
+tab1, tab2, tab3, tab4 = st.tabs([
+    "📊 개요",
+    "📈 월별 추이",
+    "🔎 시리즈 분석",
+    "📋 상세 데이터",
 ])
 
-# -----------------------
-# 유틸: 숫자 포맷 (천단위 콤마)
-# -----------------------
-def format_df_numbers(df, int_cols=None, float_cols=None):
-    df2 = df.copy()
-    if int_cols:
-        for c in int_cols:
-            if c in df2.columns:
-                df2[c] = df2[c].apply(lambda x: f"{int(x):,}" if pd.notna(x) and str(x) != "" else "")
-    if float_cols:
-        for c in float_cols:
-            if c in df2.columns:
-                df2[c] = df2[c].apply(lambda x: f"{x:,.1f}" if pd.notna(x) and str(x) != "" else "")
-    return df2
 
-# -----------------------
-# 탭: 메인 대시보드
-# - 간결한 레이아웃, 공급단 '전체' 선택 시 모든 공급단(시디즈/베트남/의자양지 등) 포함
-# -----------------------
-with tab_main:
-    st.header("메인 대시보드")
-    st.write("사이드바의 '메인 대시보드 필터'에서 공급단·시리즈를 접어서 선택하세요.")
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  탭1: 개요
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+with tab1:
 
-    if not sel_sr_main:
-        st.warning("사이드바에서 시리즈를 선택해 주세요.")
+    df_ov = apply_filters(mg_all, ym=sel_ym, brands=sel_brands, supply=sel_supply)
+
+    if df_ov.empty:
+        st.warning("선택한 조건에 해당하는 데이터가 없습니다.")
     else:
-        # 기본 필터: 기준월, 브랜드, 시리즈
-        df_main = f_df[(f_df["ym"] == sel_ym) & (f_df["brand"].isin(sel_br)) & (f_df["series"].isin(sel_sr_main))].copy()
+        # ── KPI 4개
+        t_f   = int(df_ov["forecast"].sum())
+        t_a   = int(df_ov["actual"].sum())
+        t_d   = t_a - t_f
+        t_r   = round(t_a / t_f * 100, 1) if t_f > 0 else 0.0
+        d_cls = delta_color(t_d)
 
-        # 공급단 필터: '전체'이면 supply가 결측이든 아니든 모두 포함하되,
-        # 공급단별 집계/피벗에서는 결측(supply==NaN)은 제외하여 '기타'가 보이지 않도록 처리
-        if sel_supply_main != "전체":
-            df_main = df_main[df_main['supply'] == sel_supply_main]
-
-        # 실제값 병합
-        a_sel = a_df[a_df["ym"] == sel_ym].copy()
-        mg_main = pd.merge(df_main, a_sel[["combo","actual"]], on="combo", how="left")
-        mg_main["actual"] = mg_main["actual"].fillna(0).astype(int)
-        mg_main["forecast"] = mg_main["forecast"].fillna(0).astype(int)
-        mg_main["차이"] = mg_main["actual"] - mg_main["forecast"]
-        mg_main["오차량"] = mg_main["차이"].abs()
-        mg_main["달성률(%)"] = np.where(mg_main["forecast"]>0, (mg_main["actual"]/mg_main["forecast"]*100).round(1), 0.0)
-
-        # 정렬 맵 (한글)
-        sort_map = {
-            "오차 절대값 큰 순": ("오차량", False),
-            "차이(실-예측) 큰 순": ("차이", False),
-            "실수주량 큰 순": ("actual", False),
-            "예측수요 큰 순": ("forecast", False),
-            "달성률 큰 순": ("달성률(%)", False)
-        }
-        # 사용자가 선택한 정렬 텍스트가 기존 옵션과 다를 수 있으므로 안전하게 매핑
-        sort_key = "오차량"
-        ascending = False
-        if sort_metric_main in sort_map:
-            sort_key, ascending = sort_map[sort_metric_main]
-        mg_main = mg_main.sort_values(by=sort_key, ascending=ascending)
-
-        # 검색 필터
-        if search_term_main:
-            mg_main = mg_main[mg_main['combo'].str.contains(search_term_main, case=False) | mg_main['name'].str.contains(search_term_main, case=False)]
-
-        # 요약 카드 (숫자 포맷)
-        t_f = int(mg_main['forecast'].sum())
-        t_a = int(mg_main['actual'].sum())
-        t_d = int(t_a - t_f)
-        t_r = (t_a / t_f * 100) if t_f > 0 else 0.0
+        month_label = sel_ym.replace("-", "년 ") + "월"
 
         c1, c2, c3, c4 = st.columns(4)
-        with c1:
-            st.markdown(f'<div class="metric-card"><div class="metric-label">예측수요 합계</div><div class="metric-value">{t_f:,}</div><div class="metric-sub">Forecast</div></div>', unsafe_allow_html=True)
-        with c2:
-            st.markdown(f'<div class="metric-card"><div class="metric-label">실수주 합계</div><div class="metric-value">{t_a:,}</div><div class="metric-sub">{sel_ym.split("-")[1]}월</div></div>', unsafe_allow_html=True)
-        with c3:
-            st.markdown(f'<div class="metric-card"><div class="metric-label">차이 합계</div><div class="metric-value" style="color:#fb7185">{t_d:,}</div><div class="metric-sub">Actual - Forecast</div></div>', unsafe_allow_html=True)
-        with c4:
-            st.markdown(f'<div class="metric-card"><div class="metric-label">전체 달성률</div><div class="metric-value">{t_r:.1f}%</div><div class="metric-sub">Actual / Forecast</div></div>', unsafe_allow_html=True)
+        kpi_data = [
+            (c1, "#3B82F6", "예측 수요",   fmt_int(t_f),  f"{month_label} 예측 합계",   ""),
+            (c2, "#10B981", "실 수주",     fmt_int(t_a),  f"{month_label} 실수주 합계",  ""),
+            (c3, "#F59E0B" if t_d >= 0 else "#EF4444",
+                             "예측 오차",  fmt_int(abs(t_d)),
+                             "실수주 − 예측",
+                             f"<span class='{d_cls}'>{'▲' if t_d>=0 else '▼'} {fmt_int(abs(t_d))}</span>"),
+            (c4, "#8B5CF6", "달성률",      fmt_pct(t_r),  "실수주 ÷ 예측 × 100",         ""),
+        ]
+        for col, color, label, value, sub, extra in kpi_data:
+            with col:
+                st.markdown(f"""
+                <div class="kpi-wrap" style="border-left-color:{color}">
+                    <div class="kpi-label">{label}</div>
+                    <div class="kpi-value">{value}</div>
+                    <div class="kpi-sub">{sub}</div>
+                    {f'<div style="margin-top:6px;font-size:13px">{extra}</div>' if extra else ''}
+                </div>""", unsafe_allow_html=True)
 
-        # 차트: Top N (간결하게 시리즈별 비교)
-        st.write("")
-        left, right = st.columns(2)
-        chart_data = mg_main.groupby('series').agg({'forecast':'sum','actual':'sum'}).reset_index().sort_values('forecast', ascending=False).head(top_n_main)
+        st.markdown("<br>", unsafe_allow_html=True)
 
-        with left:
-            st.subheader(f"상위 Top {top_n_main} 수량 분석 (시리즈)")
-            fig = go.Figure()
-            fig.add_trace(go.Bar(x=chart_data['series'], y=chart_data['forecast'], name='예측수요', marker_color='#3b82f6'))
-            fig.add_trace(go.Bar(x=chart_data['series'], y=chart_data['actual'], name='실수주량', marker_color='#fb7185'))
-            fig.update_layout(barmode='group', template='plotly_white', height=420)
-            st.plotly_chart(fig, use_container_width=True)
+        # ── 차트 2개 (브랜드별 예측vs실적 / 달성률)
+        col_left, col_right = st.columns([3, 2])
 
-        with right:
-            st.subheader("달성률 현황 (Top)")
-            chart_rate = chart_data.copy()
-            chart_rate['달성률(%)'] = np.where(chart_rate['forecast']>0, (chart_rate['actual']/chart_rate['forecast']*100).round(1), 0.0)
-            fig2 = go.Figure(go.Bar(x=chart_rate['series'], y=chart_rate['달성률(%)'], marker_color='#0ea5e9'))
-            fig2.add_hline(y=100, line_dash="dash", line_color="red")
-            fig2.update_layout(template='plotly_white', height=420)
-            st.plotly_chart(fig2, use_container_width=True)
+        brand_agg = df_ov.groupby("brand").agg(forecast=("forecast","sum"), actual=("actual","sum")).reset_index()
+        brand_agg["달성률"] = np.where(brand_agg["forecast"]>0,
+                                       brand_agg["actual"]/brand_agg["forecast"]*100, 0).round(1)
 
-        # 상세 테이블: supply 결측값은 빈칸으로 표시하되 '기타' 컬럼은 만들지 않음
-        cols_show = ['ym','brand','series','combo','name','supply','forecast','actual','차이','달성률(%)']
-        display_df = mg_main[cols_show].fillna("")
-        display_df = format_df_numbers(display_df, int_cols=['forecast','actual','차이'], float_cols=['달성률(%)'])
-        st.subheader("상세 데이터")
-        st.dataframe(display_df, use_container_width=True)
+        with col_left:
+            st.markdown('<div class="section-card">', unsafe_allow_html=True)
+            st.markdown('<div class="section-title">브랜드별 예측 vs 실수주</div>', unsafe_allow_html=True)
+            fig_bar = go.Figure()
+            fig_bar.add_trace(go.Bar(name="예측 수요", x=brand_agg["brand"], y=brand_agg["forecast"],
+                                     marker_color="#93C5FD", text=brand_agg["forecast"].apply(fmt_int),
+                                     textposition="outside"))
+            fig_bar.add_trace(go.Bar(name="실 수주",   x=brand_agg["brand"], y=brand_agg["actual"],
+                                     marker_color="#6EE7B7", text=brand_agg["actual"].apply(fmt_int),
+                                     textposition="outside"))
+            fig_bar.update_layout(barmode="group", template="plotly_white",
+                                  height=300, margin=dict(l=0,r=0,t=10,b=0),
+                                  legend=dict(orientation="h", yanchor="bottom", y=1),
+                                  yaxis=dict(showgrid=True, gridcolor="#F3F4F6"))
+            st.plotly_chart(fig_bar, use_container_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
 
-# -----------------------
-# 탭: 시계열 추이 (간단)
-# -----------------------
-with tab_ts:
-    st.header("시계열 추이")
-    st.write("월별 예측과 실적 추이를 브랜드/시리즈별로 간단히 확인합니다.")
+        with col_right:
+            st.markdown('<div class="section-card">', unsafe_allow_html=True)
+            st.markdown('<div class="section-title">브랜드별 달성률</div>', unsafe_allow_html=True)
+            colors = ["#22C55E" if v >= 95 else "#F59E0B" if v >= 80 else "#EF4444"
+                      for v in brand_agg["달성률"]]
+            fig_rate = go.Figure()
+            fig_rate.add_trace(go.Bar(
+                x=brand_agg["달성률"], y=brand_agg["brand"],
+                orientation="h", marker_color=colors,
+                text=[f"{v:.1f}%" for v in brand_agg["달성률"]],
+                textposition="outside"
+            ))
+            fig_rate.add_vline(x=100, line_dash="dot", line_color="#6B7280",
+                               annotation_text="100%", annotation_position="top")
+            fig_rate.update_layout(template="plotly_white", height=300,
+                                   margin=dict(l=0,r=40,t=10,b=0),
+                                   xaxis=dict(range=[0, max(130, brand_agg["달성률"].max()+15)]))
+            st.plotly_chart(fig_rate, use_container_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
 
-    mg_time = mg_all.copy()
-    try:
-        mg_time['ym_dt'] = pd.to_datetime(mg_time['ym'] + "-01", format="%Y-%m-%d")
-    except Exception:
-        mg_time['ym_dt'] = mg_time['ym']
+        # ── 공급단 파이 + 자동 리포트
+        col_pie, col_rep = st.columns([1, 2])
 
-    group_col = "brand" if ts_mode == "브랜드별" else "series"
-    agg = mg_time.groupby(['ym_dt', group_col]).agg({'forecast':'sum','actual':'sum'}).reset_index()
+        with col_pie:
+            st.markdown('<div class="section-card">', unsafe_allow_html=True)
+            st.markdown('<div class="section-title">공급단별 예측 비중</div>', unsafe_allow_html=True)
+            sup_agg = df_ov[df_ov["supply"].notna() & (df_ov["supply"] != "<NA>")]\
+                        .groupby("supply")["forecast"].sum().reset_index()
+            if sup_agg.empty:
+                st.info("공급단 데이터 없음")
+            else:
+                fig_pie = go.Figure(go.Pie(
+                    labels=sup_agg["supply"], values=sup_agg["forecast"],
+                    hole=0.5, textinfo="label+percent",
+                    marker=dict(colors=["#60A5FA","#34D399","#FBBF24","#A78BFA"])
+                ))
+                fig_pie.update_layout(height=280, margin=dict(l=0,r=0,t=10,b=0),
+                                      showlegend=False)
+                st.plotly_chart(fig_pie, use_container_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
 
-    if ts_target:
-        agg = agg[agg[group_col].isin(ts_target)]
+        with col_rep:
+            st.markdown('<div class="section-card">', unsafe_allow_html=True)
+            st.markdown('<div class="section-title">자동 분석 요약</div>', unsafe_allow_html=True)
+
+            # 상위 오차 시리즈
+            sr_agg = df_ov.groupby("series").agg(f=("forecast","sum"), a=("actual","sum")).reset_index()
+            sr_agg["달성률"] = np.where(sr_agg["f"]>0, (sr_agg["a"]/sr_agg["f"]*100).round(1), 0)
+            sr_agg["오차량"] = (sr_agg["a"] - sr_agg["f"]).abs()
+            top_err = sr_agg.sort_values("오차량", ascending=False).head(3)
+            under5  = sr_agg[sr_agg["달성률"] < 90].sort_values("달성률").head(3)
+            over5   = sr_agg[sr_agg["달성률"] > 110].sort_values("달성률", ascending=False).head(3)
+
+            trend_word = "초과달성" if t_r >= 100 else "미달"
+            color_word = "#10B981" if t_r >= 100 else "#EF4444"
+
+            report = f"""
+            <div class="report-box">
+            <b>{month_label}</b> 기준, 전체 달성률은
+            <b style="color:{color_word}">{fmt_pct(t_r)}</b>으로
+            예측 대비 <b>{trend_word}</b> 상태입니다.<br><br>
+            """
+            if not top_err.empty:
+                report += "<b>📍 오차 상위 시리즈</b><br>"
+                for _, r in top_err.iterrows():
+                    tag = '<span class="report-tag-warn">주의</span>' if r["달성률"] < 90 \
+                          else '<span class="report-tag-ok">초과</span>' if r["달성률"] > 110 \
+                          else '<span class="report-tag-ok">양호</span>'
+                    report += f"&nbsp;&nbsp;{tag} <b>{r['series']}</b> — 달성률 {r['달성률']:.1f}% (오차 {fmt_int(r['오차량'])})<br>"
+
+            if not under5.empty:
+                names = ", ".join(under5["series"].tolist())
+                report += f"<br><b>⚠️ 과소예측 (달성률 &lt;90%)</b>: {names}<br>"
+            if not over5.empty:
+                names = ", ".join(over5["series"].tolist())
+                report += f"<b>🔺 과대예측 (달성률 &gt;110%)</b>: {names}<br>"
+
+            report += """
+            <br><b>💡 권장 조치</b><br>
+            &nbsp;&nbsp;① 오차 상위 품목의 재고·채널 현황 즉시 점검<br>
+            &nbsp;&nbsp;② 과소예측 품목은 반품·납기 원인 확인<br>
+            &nbsp;&nbsp;③ 다음 예측 주기에 최근 3개월 추세 반영
+            </div>
+            """
+            st.markdown(report, unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  탭2: 월별 추이
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+with tab2:
+
+    df_ts = apply_filters(mg_all, brands=sel_brands, supply=sel_supply)  # 년월 필터 없음
+
+    if df_ts.empty:
+        st.warning("선택한 조건에 해당하는 데이터가 없습니다.")
     else:
-        top_items = mg_time.groupby(group_col)['forecast'].sum().sort_values(ascending=False).head(4).index.tolist()
-        agg = agg[agg[group_col].isin(top_items)]
+        # 인라인 필터: 브랜드별 or 시리즈별 선택
+        col_f1, col_f2 = st.columns([1, 3])
+        with col_f1:
+            ts_mode = st.radio("집계 기준", ["브랜드별", "시리즈별"], horizontal=True)
+        with col_f2:
+            if ts_mode == "브랜드별":
+                choices = sorted(df_ts["brand"].unique())
+            else:
+                choices = sorted(df_ts["series"].unique())
+            ts_sel = st.multiselect(
+                f"표시할 {ts_mode[:-1]} 선택",
+                choices,
+                default=choices[:4] if len(choices) > 4 else choices
+            )
 
-    if agg.empty:
-        st.info("선택한 조건에 해당하는 시계열 데이터가 없습니다.")
+        group_col = "brand" if ts_mode == "브랜드별" else "series"
+
+        if not ts_sel:
+            st.info(f"{ts_mode[:-1]}을 하나 이상 선택하세요.")
+        else:
+            df_ts2 = df_ts[df_ts[group_col].isin(ts_sel)]
+            agg_ts = df_ts2.groupby(["ym_dt", group_col]).agg(
+                forecast=("forecast","sum"), actual=("actual","sum")
+            ).reset_index().sort_values("ym_dt")
+
+            # ── 예측 vs 실적 추이
+            st.markdown('<div class="section-card">', unsafe_allow_html=True)
+            st.markdown('<div class="section-title">월별 예측 vs 실수주 추이</div>', unsafe_allow_html=True)
+
+            palette_f = ["#93C5FD","#86EFAC","#FDE68A","#DDD6FE","#FBCFE8"]
+            palette_a = ["#2563EB","#16A34A","#D97706","#7C3AED","#DB2777"]
+
+            fig_ts = go.Figure()
+            for i, item in enumerate(ts_sel):
+                d = agg_ts[agg_ts[group_col] == item].sort_values("ym_dt")
+                fig_ts.add_trace(go.Scatter(
+                    x=d["ym_dt"], y=d["forecast"], name=f"{item} 예측",
+                    mode="lines+markers", line=dict(dash="dot", color=palette_f[i % len(palette_f)]),
+                    marker=dict(size=6)
+                ))
+                fig_ts.add_trace(go.Scatter(
+                    x=d["ym_dt"], y=d["actual"], name=f"{item} 실적",
+                    mode="lines+markers", line=dict(color=palette_a[i % len(palette_a)]),
+                    marker=dict(size=7)
+                ))
+            fig_ts.update_layout(
+                template="plotly_white", height=380,
+                margin=dict(l=0,r=0,t=10,b=0),
+                xaxis=dict(title="기준월", showgrid=False),
+                yaxis=dict(title="수량", showgrid=True, gridcolor="#F3F4F6"),
+                legend=dict(orientation="h", yanchor="bottom", y=1, font=dict(size=11)),
+                hovermode="x unified"
+            )
+            st.plotly_chart(fig_ts, use_container_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+
+            # ── 달성률 추이 (히트맵 느낌 bar)
+            st.markdown('<div class="section-card">', unsafe_allow_html=True)
+            st.markdown('<div class="section-title">월별 달성률 추이</div>', unsafe_allow_html=True)
+
+            rate_ts = agg_ts.copy()
+            rate_ts["달성률"] = np.where(
+                rate_ts["forecast"] > 0,
+                (rate_ts["actual"] / rate_ts["forecast"] * 100).round(1), 0
+            )
+            fig_rate_ts = go.Figure()
+            for i, item in enumerate(ts_sel):
+                d = rate_ts[rate_ts[group_col] == item].sort_values("ym_dt")
+                fig_rate_ts.add_trace(go.Scatter(
+                    x=d["ym_dt"], y=d["달성률"], name=item,
+                    mode="lines+markers",
+                    line=dict(color=palette_a[i % len(palette_a)]),
+                    marker=dict(size=7)
+                ))
+            fig_rate_ts.add_hline(y=100, line_dash="dot", line_color="#9CA3AF",
+                                  annotation_text="100% 기준", annotation_font_size=11)
+            fig_rate_ts.update_layout(
+                template="plotly_white", height=280,
+                margin=dict(l=0,r=0,t=10,b=0),
+                xaxis=dict(title="기준월", showgrid=False),
+                yaxis=dict(title="달성률 (%)", showgrid=True, gridcolor="#F3F4F6"),
+                legend=dict(orientation="h", yanchor="bottom", y=1, font=dict(size=11)),
+                hovermode="x unified"
+            )
+            st.plotly_chart(fig_rate_ts, use_container_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  탭3: 시리즈 분석
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+with tab3:
+
+    df_sr = apply_filters(mg_all, ym=sel_ym, brands=sel_brands, supply=sel_supply)
+
+    if df_sr.empty:
+        st.warning("선택한 조건에 해당하는 데이터가 없습니다.")
     else:
-        fig = go.Figure()
-        for it in agg[group_col].unique():
-            df_it = agg[agg[group_col]==it].sort_values('ym_dt')
-            fig.add_trace(go.Scatter(x=df_it['ym_dt'], y=df_it['forecast'], mode='lines+markers', name=f"{it} 예측", line=dict(dash='dash')))
-            fig.add_trace(go.Scatter(x=df_it['ym_dt'], y=df_it['actual'], mode='lines+markers', name=f"{it} 실적"))
-        fig.update_layout(title="월별 예측 vs 실적", xaxis_title="기준월", yaxis_title="수량", template='plotly_white', height=520)
-        st.plotly_chart(fig, use_container_width=True)
+        # 인라인 필터: Top N
+        col_f, _ = st.columns([1, 3])
+        with col_f:
+            top_n = st.slider("표시할 시리즈 수 (Top N)", 5, 30, 15)
 
-# -----------------------
-# 탭: 시리즈 상세
-# -----------------------
-with tab_series:
-    st.header("시리즈 상세")
-    st.write("브랜드/공급단 필터로 시리즈별 예측량을 확인하세요.")
+        sr_agg = df_sr.groupby("series").agg(
+            forecast=("forecast","sum"), actual=("actual","sum")
+        ).reset_index()
+        sr_agg["달성률(%)"] = np.where(
+            sr_agg["forecast"] > 0,
+            (sr_agg["actual"] / sr_agg["forecast"] * 100).round(1), 0
+        )
+        sr_agg["오차량"] = (sr_agg["actual"] - sr_agg["forecast"]).abs()
+        sr_top = sr_agg.sort_values("forecast", ascending=False).head(top_n)
 
-    df_series = f_df.copy()
-    if sel_brand_series != "전체":
-        df_series = df_series[df_series['brand'] == sel_brand_series]
-    if sel_supply_series != "전체":
-        df_series = df_series[df_series['supply'] == sel_supply_series]
+        col_l, col_r = st.columns([3, 2])
 
-    series_agg = df_series.groupby('series').agg({'forecast':'sum'}).reset_index().sort_values('forecast', ascending=False)
-    if series_agg.empty:
-        st.info("선택한 조건에 해당하는 시리즈 데이터가 없습니다.")
+        with col_l:
+            st.markdown('<div class="section-card">', unsafe_allow_html=True)
+            st.markdown('<div class="section-title">시리즈별 예측 vs 실수주 (예측량 순)</div>', unsafe_allow_html=True)
+            sr_plot = sr_top.sort_values("forecast")
+            fig_sr = go.Figure()
+            fig_sr.add_trace(go.Bar(
+                y=sr_plot["series"], x=sr_plot["forecast"],
+                name="예측 수요", orientation="h",
+                marker_color="#93C5FD", text=sr_plot["forecast"].apply(fmt_int),
+                textposition="outside"
+            ))
+            fig_sr.add_trace(go.Bar(
+                y=sr_plot["series"], x=sr_plot["actual"],
+                name="실 수주", orientation="h",
+                marker_color="#6EE7B7", text=sr_plot["actual"].apply(fmt_int),
+                textposition="outside"
+            ))
+            fig_sr.update_layout(
+                barmode="group", template="plotly_white",
+                height=max(320, top_n * 28),
+                margin=dict(l=0,r=60,t=10,b=0),
+                xaxis=dict(showgrid=True, gridcolor="#F3F4F6"),
+                legend=dict(orientation="h", yanchor="bottom", y=1)
+            )
+            st.plotly_chart(fig_sr, use_container_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        with col_r:
+            st.markdown('<div class="section-card">', unsafe_allow_html=True)
+            st.markdown('<div class="section-title">달성률 분포</div>', unsafe_allow_html=True)
+
+            # 달성률 구간별 카운트
+            bins   = [0, 70, 90, 110, 130, 9999]
+            labels = ["70% 미만", "70~90%", "90~110%", "110~130%", "130% 초과"]
+            sr_agg["구간"] = pd.cut(sr_agg["달성률(%)"], bins=bins, labels=labels, right=False)
+            bin_cnt = sr_agg["구간"].value_counts().reindex(labels, fill_value=0).reset_index()
+            bin_cnt.columns = ["구간", "건수"]
+
+            bar_colors = ["#EF4444","#F87171","#22C55E","#FBBF24","#F59E0B"]
+            fig_bin = go.Figure(go.Bar(
+                x=bin_cnt["구간"], y=bin_cnt["건수"],
+                marker_color=bar_colors,
+                text=bin_cnt["건수"], textposition="outside"
+            ))
+            fig_bin.update_layout(
+                template="plotly_white", height=260,
+                margin=dict(l=0,r=0,t=10,b=0),
+                yaxis=dict(showgrid=True, gridcolor="#F3F4F6"),
+            )
+            st.plotly_chart(fig_bin, use_container_width=True)
+
+            # 달성률 스캐터
+            st.markdown('<div class="section-title" style="margin-top:12px">오차량 vs 달성률</div>', unsafe_allow_html=True)
+            fig_sc = go.Figure(go.Scatter(
+                x=sr_top["오차량"], y=sr_top["달성률(%)"],
+                mode="markers+text",
+                text=sr_top["series"], textposition="top center",
+                textfont=dict(size=10),
+                marker=dict(
+                    size=12, color=sr_top["달성률(%)"],
+                    colorscale="RdYlGn", cmin=70, cmax=130,
+                    showscale=True, colorbar=dict(thickness=10, len=0.6)
+                )
+            ))
+            fig_sc.add_hline(y=100, line_dash="dot", line_color="#9CA3AF")
+            fig_sc.update_layout(
+                template="plotly_white", height=260,
+                margin=dict(l=0,r=0,t=10,b=0),
+                xaxis=dict(title="오차량", showgrid=True, gridcolor="#F3F4F6"),
+                yaxis=dict(title="달성률 (%)", showgrid=True, gridcolor="#F3F4F6")
+            )
+            st.plotly_chart(fig_sc, use_container_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        # ── 하단 테이블
+        st.markdown('<div class="section-card">', unsafe_allow_html=True)
+        st.markdown('<div class="section-title">시리즈별 상세 수치</div>', unsafe_allow_html=True)
+        display_sr = sr_top.rename(columns={
+            "series":"시리즈","forecast":"예측 수요","actual":"실 수주",
+            "달성률(%)":"달성률(%)","오차량":"오차량"
+        }).sort_values("예측 수요", ascending=False)
+
+        def color_rate(v):
+            if v >= 100: return "background-color: #D1FAE5; color: #065F46"
+            elif v >= 90: return "background-color: #FEF9C3; color: #92400E"
+            return "background-color: #FEE2E2; color: #991B1B"
+
+        styled = display_sr.style\
+            .format({"예측 수요": "{:,.0f}", "실 수주": "{:,.0f}",
+                     "오차량": "{:,.0f}", "달성률(%)": "{:.1f}%"})\
+            .applymap(color_rate, subset=["달성률(%)"])
+        st.dataframe(styled, use_container_width=True, height=300)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  탭4: 상세 데이터
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+with tab4:
+
+    df_det = apply_filters(mg_all, ym=sel_ym, brands=sel_brands, supply=sel_supply)
+
+    if df_det.empty:
+        st.warning("선택한 조건에 해당하는 데이터가 없습니다.")
     else:
-        plot_df = series_agg.head(top_n_series).sort_values('forecast')
-        fig_s = go.Figure(go.Bar(x=plot_df['forecast'], y=plot_df['series'], orientation='h', marker_color='#3b82f6'))
-        fig_s.update_layout(title=f"시리즈별 예측량 (Top {top_n_series})", xaxis_title="예측수량", template='plotly_white', height=520)
-        st.plotly_chart(fig_s, use_container_width=True)
+        # 인라인 필터: 검색 + 정렬 + Top N
+        col_s, col_o, col_n = st.columns([2, 2, 1])
+        with col_s:
+            search = st.text_input("🔍 콤보코드 / 시리즈 / 명칭 검색", placeholder="예) T60, 시디즈...")
+        with col_o:
+            sort_by = st.selectbox("정렬 기준", [
+                "오차량 큰 순", "예측수요 큰 순", "실수주 큰 순", "달성률 높은 순", "달성률 낮은 순"
+            ])
+        with col_n:
+            show_n = st.slider("표시 행 수", 10, 200, 50)
 
-        # 시리즈별 예측/실적 표 (전체 기간 합계)
-        actual_map = mg_all.groupby('series').agg({'actual':'sum'}).reset_index()
-        merged = series_agg.merge(actual_map, on='series', how='left').fillna(0)
-        merged['달성률(%)'] = np.where(merged['forecast']>0, (merged['actual']/merged['forecast']*100).round(1), 0.0)
-        merged_display = merged.rename(columns={'forecast':'예측수요','actual':'실수주'})
-        merged_display = format_df_numbers(merged_display, int_cols=['예측수수','예측수수'] if False else ['예측수수'] )  # no-op safe
-        # simpler formatting:
-        merged_display = format_df_numbers(merged_display, int_cols=['예측수수'] if False else ['예측수수'])  # keep stable
-        # show raw but formatted manually:
-        merged_display = merged.rename(columns={'forecast':'예측수요','actual':'실수주'})
-        merged_display = format_df_numbers(merged_display, int_cols=['예측수요','실수주'], float_cols=['달성률(%)'])
-        st.subheader("시리즈별 예측/실적 (전체 기간 합계)")
-        st.dataframe(merged_display, use_container_width=True)
+        sort_map = {
+            "오차량 큰 순":   ("오차량",   False),
+            "예측수요 큰 순":  ("forecast", False),
+            "실수주 큰 순":    ("actual",   False),
+            "달성률 높은 순":  ("달성률(%)", False),
+            "달성률 낮은 순":  ("달성률(%)", True),
+        }
+        sc, sa = sort_map[sort_by]
+        df_det2 = df_det.sort_values(sc, ascending=sa)
 
-# -----------------------
-# 탭: 전체 데이터 (공급단 분포 및 피벗)
-# -----------------------
-with tab_all:
-    st.header("전체 데이터")
-    st.write("공급단별 예측 비중과 브랜드×공급단 피벗을 확인합니다.")
+        if search:
+            mask = (
+                df_det2["combo"].str.contains(search, case=False, na=False) |
+                df_det2["series"].str.contains(search, case=False, na=False) |
+                df_det2["name"].str.contains(search, case=False, na=False)
+            )
+            df_det2 = df_det2[mask]
 
-    df_all = f_df.copy()
-    if sel_supply_all := (st.session_state.get("sel_supply_all") if "sel_supply_all" in st.session_state else None):
-        pass  # placeholder (we use sidebar expander earlier)
-    if 'sel_supply_all' in locals() and sel_supply_all != "전체":
-        df_all = df_all[df_all['supply'] == sel_supply_all]
+        # 요약 행
+        total_rows = len(df_det2)
+        st.caption(f"조건에 맞는 데이터: {total_rows:,}건 (상위 {min(show_n, total_rows)}건 표시)")
 
-    supply_agg = df_all.dropna(subset=['supply']).groupby('supply').agg({'forecast':'sum'}).reset_index()
-    if supply_agg.empty:
-        st.info("공급단별 집계 데이터가 없습니다.")
-    else:
-        total_forecast = int(supply_agg['forecast'].sum())
-        fig_pie = go.Figure(data=[go.Pie(labels=supply_agg['supply'], values=supply_agg['forecast'], hole=0.45)])
-        fig_pie.update_layout(title=f"공급단별 예측 비중 (총합: {total_forecast:,})", template='plotly_white', height=420)
-        st.plotly_chart(fig_pie, use_container_width=True)
+        cols_show = ["ym","brand","series","combo","name","supply",
+                     "forecast","actual","차이","달성률(%)"]
+        display_det = df_det2[cols_show].head(show_n).copy()
+        display_det["supply"] = display_det["supply"].replace({"<NA>": "—"})
 
-        pivot = df_all.dropna(subset=['supply']).pivot_table(index='brand', columns='supply', values='forecast', aggfunc='sum', fill_value=0)
-        pivot['총합'] = pivot.sum(axis=1)
-        pivot = pivot.sort_values('총합', ascending=False).drop(columns=['총합'])
-        pivot_display = pivot.astype(int).reset_index()
-        int_cols = [c for c in pivot_display.columns if c != 'brand']
-        pivot_display = format_df_numbers(pivot_display, int_cols=int_cols)
-        st.subheader("브랜드 × 공급단 예측량")
-        st.dataframe(pivot_display, use_container_width=True)
+        styled_det = display_det.style\
+            .format({"forecast": "{:,.0f}", "actual": "{:,.0f}",
+                     "차이": "{:,.0f}", "달성률(%)": "{:.1f}%"})\
+            .applymap(
+                lambda v: "background-color:#FEE2E2" if isinstance(v, (int, float)) and v < 0 else "",
+                subset=["차이"]
+            )
 
-# -----------------------
-# 탭: 수주대비 실적 분석 (한글 서술형 리포트)
-# -----------------------
-def generate_narrative(mg_perf, low_thr=90, high_thr=110):
-    total_forecast = int(mg_perf['forecast'].sum())
-    total_actual = int(mg_perf['actual'].sum())
-    total_diff = total_actual - total_forecast
-    total_rate = (total_actual / total_forecast * 100) if total_forecast > 0 else 0.0
+        st.dataframe(styled_det, use_container_width=True, height=500)
 
-    series_perf = mg_perf.groupby('series').agg({'forecast':'sum','actual':'sum'}).reset_index()
-    series_perf['달성률'] = np.where(series_perf['forecast']>0, (series_perf['actual']/series_perf['forecast']*100).round(1), 0.0)
-    series_perf['오차량'] = (series_perf['actual'] - series_perf['forecast']).abs()
-    worst = series_perf.sort_values('오차량', ascending=False).head(5)
-
-    under = series_perf[series_perf['달성률'] < low_thr].sort_values('달성률').head(5)
-    over = series_perf[series_perf['달성률'] > high_thr].sort_values('달성률', ascending=False).head(5)
-
-    html = f"""
-    <div class="analysis-box">
-      <strong>요약</strong><br>
-      기준월 예측수요 <strong>{total_forecast:,}</strong>건, 실제수주 <strong>{total_actual:,}</strong>건, 차이 <strong>{total_diff:,}</strong>건, 전체 달성률 <strong>{total_rate:.1f}%</strong>입니다.<br><br>
-      <strong>주요 관찰</strong><br>
-      - 전체적으로 예측 대비 실수주가 {'부족' if total_rate < 100 else '초과'}한 경향입니다.<br>
-      - 오차가 큰 상위 품목은 우선 원인(재고·프로모션·납기·채널)을 점검하세요.<br><br>
-      <strong>상위 오차 품목 (절대값 기준)</strong><br>
-    """
-    if worst.empty:
-        html += "해당 없음<br>"
-    else:
-        for _, r in worst.iterrows():
-            html += f"- {r['series']}: 예측 {int(r['forecast']):,} → 실제 {int(r['actual']):,} (오차 {int(r['오차량']):,}, 달성률 {r['달성률']:.1f}%)<br>"
-
-    html += "<br><strong>과소/과대 예측 요약</strong><br>"
-    if under.empty:
-        html += f"- 과소예측(달성률 < {low_thr}%) 항목: 없음<br>"
-    else:
-        html += "- 과소예측 상위: " + ", ".join([f"{r['series']}({r['달성률']}%)" for _, r in under.iterrows()]) + "<br>"
-    if over.empty:
-        html += f"- 과대예측(달성률 > {high_thr}%) 항목: 없음<br>"
-    else:
-        html += "- 과대예측 상위: " + ", ".join([f"{r['series']}({r['달성률']}%)" for _, r in over.iterrows()]) + "<br>"
-
-    html += """
-      <br><strong>권장 조치</strong><br>
-      1) 상위 오차 품목의 재고·프로모션·납기·채널별 판매 현황을 우선 점검하세요.<br>
-      2) 과소예측 품목은 수요 감소 원인(반품·납기지연 등)을 확인하세요.<br>
-      3) 과대예측 품목은 판촉·대량발주 여부를 확인하고 다음 예측에 반영하세요.<br>
-      4) 반복 오차 품목은 별도 모니터링 대상으로 지정하세요.<br>
-    </div>
-    """
-    return html
-
-with tab_perf:
-    st.header("수주대비 실적 분석")
-    st.write("사이드바 필터로 제어됩니다. (기준 년월 / 브랜드 / 공급단)")
-
-    mg_perf = mg_all[(mg_all['ym'] == sel_ym) & (mg_all['brand'].isin(sel_br))].copy()
-    if sel_supply_main != "전체":
-        mg_perf = mg_perf[mg_perf['supply'] == sel_supply_main]
-
-    if mg_perf.empty:
-        st.info("선택한 조건에 해당하는 데이터가 없습니다.")
-    else:
-        total_forecast = int(mg_perf['forecast'].sum())
-        total_actual = int(mg_perf['actual'].sum())
-        total_diff = total_actual - total_forecast
-        total_rate = (total_actual / total_forecast * 100) if total_forecast > 0 else 0.0
-
-        p1, p2, p3, p4 = st.columns(4)
-        p1.metric("예측수요 합계", f"{total_forecast:,}")
-        p2.metric("실수주 합계", f"{total_actual:,}")
-        p3.metric("차이(실-예측)", f"{total_diff:,}", delta=f"{total_diff:,}")
-        p4.metric("전체 달성률", f"{total_rate:.1f}%")
-
-        series_perf = mg_perf.groupby('series').agg({'forecast':'sum','actual':'sum'}).reset_index()
-        series_perf['달성률(%)'] = np.where(series_perf['forecast']>0, (series_perf['actual']/series_perf['forecast']*100).round(1), 0.0)
-        series_perf['오차량'] = (series_perf['actual'] - series_perf['forecast']).abs()
-        st.subheader("시리즈별 성과")
-        st.dataframe(format_df_numbers(series_perf.rename(columns={'forecast':'예측수요','actual':'실수주'}), int_cols=['예측수수'] if False else ['예측수수']), use_container_width=True)
-
-        st.subheader("자동 분석 리포트 (요약)")
-        st.markdown(generate_narrative(mg_perf, low_thr=perf_threshold_low, high_thr=perf_threshold_high), unsafe_allow_html=True)
-
-# -----------------------
-# 하단: 원본 데이터 미리보기
-# -----------------------
-st.markdown("---")
-st.subheader("원본 데이터 미리보기 (선택된 브랜드/월 기준)")
-preview = mg_all[(mg_all['brand'].isin(sel_br)) & (mg_all['ym'] == sel_ym)].copy()
-if sel_supply_main != "전체":
-    preview = preview[preview['supply'] == sel_supply_main]
-if preview.empty:
-    st.info("선택한 조건에 해당하는 원본 데이터가 없습니다.")
-else:
-    cols = ['ym','brand','series','combo','name','supply','forecast','actual','차이','달성률(%)']
-    preview = preview[cols].fillna("")
-    preview = format_df_numbers(preview, int_cols=['forecast','actual','차이'], float_cols=['달성률(%)'])
-    st.dataframe(preview, use_container_width=True)
+        # 다운로드 버튼
+        csv = df_det2[cols_show].to_csv(index=False, encoding="utf-8-sig")
+        st.download_button(
+            label="⬇️ CSV 다운로드",
+            data=csv,
+            file_name=f"forecast_detail_{sel_ym}.csv",
+            mime="text/csv"
+        )
