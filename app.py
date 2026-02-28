@@ -19,267 +19,255 @@ st.set_page_config(
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap');
-
-/* ══════════════════════════════════════════════════
-   기본
-══════════════════════════════════════════════════ */
 html, body, [class*="css"] {
     font-family: 'Noto Sans KR', sans-serif;
     font-size: 15px;
 }
+
+/* ══════════════════════════════
+   전체 배경
+══════════════════════════════ */
 .stApp { background-color: #EAECF4; }
 
-
-/* ╔══════════════════════════════════════════════╗
-   ║  사이드바 — 다크 테마로 완전 격리            ║
-   ╚══════════════════════════════════════════════╝ */
+/* ══════════════════════════════
+   사이드바
+══════════════════════════════ */
 section[data-testid="stSidebar"] {
-    background: #0F1E30 !important;
-    border-right: 1px solid #1E3048 !important;
+    background: linear-gradient(180deg, #0A1628 0%, #172035 100%);
+    border-right: 1px solid #2A3A52;
 }
-
-/* 사이드바 안의 모든 텍스트 */
-section[data-testid="stSidebar"] *  { color: #C8D6E8 !important; }
-
-/* 사이드바 라벨 (필터 제목) */
+section[data-testid="stSidebar"] p,
+section[data-testid="stSidebar"] span,
+section[data-testid="stSidebar"] div,
 section[data-testid="stSidebar"] label {
-    font-size: 13px !important;
-    font-weight: 700 !important;
-    letter-spacing: 0.06em !important;
-    text-transform: uppercase !important;
-    color: #6B93BF !important;
-    margin-bottom: 6px !important;
+    color: #DDE3EE !important;
 }
-
-/* 사이드바 selectbox 컨테이너 */
-section[data-testid="stSidebar"] .stSelectbox > div > div {
-    background: #162032 !important;
-    border: 1.5px solid #2C4A6A !important;
-    border-radius: 8px !important;
-    min-height: 42px !important;
-    color: #E8F0FA !important;
-}
-section[data-testid="stSidebar"] .stSelectbox > div > div:hover {
-    border-color: #4B7AB8 !important;
-    background: #1A2840 !important;
-}
-/* 사이드바 selectbox 선택된 값 */
-section[data-testid="stSidebar"] .stSelectbox > div > div > div {
-    color: #E8F0FA !important;
-    font-size: 15px !important;
-    font-weight: 600 !important;
-}
-
-/* 사이드바 multiselect 컨테이너 */
+section[data-testid="stSidebar"] .stSelectbox > div > div,
 section[data-testid="stSidebar"] .stMultiSelect > div > div {
-    background: #162032 !important;
-    border: 1.5px solid #2C4A6A !important;
+    background: #1C2B3F !important;
+    border: 2px solid #3D5A80 !important;
     border-radius: 8px !important;
-    min-height: 42px !important;
+    color: #EEF2FF !important;
 }
-section[data-testid="stSidebar"] .stMultiSelect > div > div:hover {
-    border-color: #4B7AB8 !important;
-}
-
-/* 사이드바 multiselect 태그 — 통일된 파랑 계열 */
-section[data-testid="stSidebar"] .stMultiSelect [data-baseweb="tag"] {
-    background: #1D4ED8 !important;
-    border: none !important;
-    border-radius: 6px !important;
-    padding: 4px 10px 4px 12px !important;
-    margin: 2px !important;
-}
-section[data-testid="stSidebar"] .stMultiSelect [data-baseweb="tag"] span {
-    color: #FFFFFF !important;
+section[data-testid="stSidebar"] .stMultiSelect span[data-baseweb="tag"] {
+    background: #2563EB !important;
+    color: white !important;
     font-size: 13px !important;
-    font-weight: 600 !important;
-}
-/* 태그 X 버튼 */
-section[data-testid="stSidebar"] .stMultiSelect [data-baseweb="tag"] [role="presentation"] {
-    color: rgba(255,255,255,0.7) !important;
-}
-
-/* 사이드바 구분선 */
-section[data-testid="stSidebar"] hr {
-    border: none !important;
-    border-top: 1px solid #1E3048 !important;
-    margin: 16px 0 !important;
-}
-
-/* 사이드바 화살표(드롭다운 아이콘) */
-section[data-testid="stSidebar"] svg { color: #4B7AB8 !important; fill: #4B7AB8 !important; }
-
-
-/* ╔══════════════════════════════════════════════╗
-   ║  본문 인터랙티브 — 라이트 테마               ║
-   ╚══════════════════════════════════════════════╝ */
-
-/* 본문 모든 위젯 라벨 */
-.main .stSelectbox label,
-.main .stMultiSelect label,
-.main .stSlider label,
-.main .stTextInput label,
-.main .stRadio label,
-.main .stRadio > label {
-    font-size: 14px !important;
     font-weight: 700 !important;
-    color: #1E3A5F !important;
-    margin-bottom: 5px !important;
-}
-
-/* 본문 Selectbox */
-.main .stSelectbox > div > div {
-    background: #FFFFFF !important;
-    border: 1.5px solid #B0C8E8 !important;
-    border-radius: 8px !important;
-    font-size: 15px !important;
-    font-weight: 500 !important;
-    color: #1E293B !important;
-    min-height: 42px !important;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.06) !important;
-}
-.main .stSelectbox > div > div:hover {
-    border-color: #3B82F6 !important;
-    box-shadow: 0 0 0 3px rgba(59,130,246,0.12) !important;
-}
-
-/* 본문 Multiselect */
-.main .stMultiSelect > div > div {
-    background: #FFFFFF !important;
-    border: 1.5px solid #B0C8E8 !important;
-    border-radius: 8px !important;
-    font-size: 15px !important;
-    color: #1E293B !important;
-    min-height: 42px !important;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.06) !important;
-}
-.main .stMultiSelect > div > div:hover {
-    border-color: #3B82F6 !important;
-}
-/* 본문 multiselect 태그 */
-.main .stMultiSelect [data-baseweb="tag"] {
-    background: #DBEAFE !important;
-    border: 1px solid #93C5FD !important;
     border-radius: 6px !important;
     padding: 3px 10px !important;
 }
-.main .stMultiSelect [data-baseweb="tag"] span {
+section[data-testid="stSidebar"] .stMultiSelect span[data-baseweb="tag"] span {
+    color: white !important;
+}
+section[data-testid="stSidebar"] hr {
+    border-color: #2A3A52 !important;
+    margin: 16px 0 !important;
+}
+section[data-testid="stSidebar"] .stSelectbox label,
+section[data-testid="stSidebar"] .stMultiSelect label {
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    color: #93B4D8 !important;
+    margin-bottom: 6px !important;
+}
+
+/* ══════════════════════════════
+   ★ 본문 인터랙티브 요소 공통
+   (흰 배경 카드 안에서도 잘 보이도록)
+══════════════════════════════ */
+
+/* 라벨 전체 */
+.stSelectbox label,
+.stMultiSelect label,
+.stSlider label,
+.stTextInput label,
+.stRadio label {
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    color: #1E3A5F !important;
+    margin-bottom: 6px !important;
+}
+
+/* ── Selectbox ── */
+.stSelectbox > div > div {
+    background: #F0F5FF !important;
+    border: 2px solid #93C5FD !important;
+    border-radius: 8px !important;
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    color: #1E3A5F !important;
+    min-height: 44px !important;
+}
+.stSelectbox > div > div:hover {
+    border-color: #2563EB !important;
+    background: #EBF2FF !important;
+}
+/* 선택된 텍스트 */
+.stSelectbox [data-testid="stMarkdownContainer"] p {
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    color: #1E3A5F !important;
+}
+
+/* ── Multiselect ── */
+.stMultiSelect > div > div {
+    background: #F0F5FF !important;
+    border: 2px solid #93C5FD !important;
+    border-radius: 8px !important;
+    font-size: 15px !important;
+    color: #1E3A5F !important;
+    min-height: 44px !important;
+}
+.stMultiSelect > div > div:hover {
+    border-color: #2563EB !important;
+}
+/* 본문 멀티셀렉트 태그 */
+.stMultiSelect span[data-baseweb="tag"] {
+    background: #DBEAFE !important;
     color: #1D4ED8 !important;
     font-size: 13px !important;
     font-weight: 700 !important;
+    border-radius: 6px !important;
+    border: 1px solid #93C5FD !important;
 }
 
-/* 본문 Slider */
-.main [data-testid="stSlider"] > div > div > div {
+/* ── Slider ── */
+/* 트랙 전체 배경 */
+.stSlider [data-testid="stSlider"] > div > div > div {
     background: #CBD5E1 !important;
     height: 6px !important;
     border-radius: 3px !important;
 }
-.main [data-testid="stSlider"] > div > div > div > div {
+/* 채워진 트랙 */
+.stSlider [data-testid="stSlider"] > div > div > div > div {
     background: #2563EB !important;
+    height: 6px !important;
 }
-.main [data-testid="stSlider"] div[role="slider"] {
-    background: #FFFFFF !important;
+/* 슬라이더 썸(원형 핸들) */
+[data-testid="stSlider"] div[role="slider"] {
+    background: white !important;
     border: 3px solid #2563EB !important;
     width: 22px !important;
     height: 22px !important;
-    box-shadow: 0 2px 6px rgba(37,99,235,0.3) !important;
+    box-shadow: 0 2px 8px rgba(37,99,235,0.35) !important;
+    top: -8px !important;
 }
-.main [data-testid="stSlider"] div[role="slider"]:hover {
-    box-shadow: 0 0 0 6px rgba(37,99,235,0.12) !important;
+[data-testid="stSlider"] div[role="slider"]:hover {
+    border-color: #1D4ED8 !important;
+    box-shadow: 0 0 0 6px rgba(37,99,235,0.15) !important;
 }
-.main .stSlider p {
+/* 슬라이더 현재값 숫자 */
+[data-testid="stSlider"] div[data-testid="stTickBarMin"],
+[data-testid="stSlider"] div[data-testid="stTickBarMax"] {
+    font-size: 13px !important;
+    color: #64748B !important;
+    font-weight: 600 !important;
+}
+/* 슬라이더 값 표시 bubble */
+.stSlider p {
     font-size: 16px !important;
     font-weight: 700 !important;
     color: #1E3A5F !important;
 }
 
-/* 본문 Text Input */
-.main .stTextInput > div > div > input {
-    background: #FFFFFF !important;
-    border: 1.5px solid #B0C8E8 !important;
+/* ── Text Input ── */
+.stTextInput > div > div > input {
+    background: #F8FAFF !important;
+    border: 2px solid #CBD5E1 !important;
     border-radius: 8px !important;
     font-size: 15px !important;
-    color: #1E293B !important;
+    color: #1E3A5F !important;
     padding: 10px 14px !important;
-    min-height: 42px !important;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.06) !important;
+    min-height: 44px !important;
 }
-.main .stTextInput > div > div > input:focus {
-    border-color: #3B82F6 !important;
-    box-shadow: 0 0 0 3px rgba(59,130,246,0.12) !important;
-    outline: none !important;
+.stTextInput > div > div > input:focus {
+    border-color: #2563EB !important;
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.15) !important;
 }
-.main .stTextInput > div > div > input::placeholder {
+.stTextInput > div > div > input::placeholder {
     color: #94A3B8 !important;
+    font-size: 14px !important;
 }
 
-/* 본문 Radio */
-.main .stRadio > div { gap: 8px !important; }
-.main .stRadio > div > label {
+/* ── Radio ── */
+.stRadio > div {
+    gap: 8px !important;
+}
+.stRadio > div > label {
     background: #F1F5F9 !important;
-    border: 1.5px solid #CBD5E1 !important;
+    border: 2px solid #CBD5E1 !important;
     border-radius: 8px !important;
-    padding: 8px 18px !important;
+    padding: 8px 16px !important;
     font-size: 14px !important;
     font-weight: 600 !important;
     color: #475569 !important;
     cursor: pointer !important;
-    transition: all 0.12s !important;
+    transition: all 0.15s !important;
 }
-.main .stRadio > div > label:has(input:checked) {
+.stRadio > div > label:has(input:checked) {
     background: #EFF6FF !important;
     border-color: #2563EB !important;
     color: #1D4ED8 !important;
 }
 
-
-/* ╔══════════════════════════════════════════════╗
-   ║  KPI 카드                                    ║
-   ╚══════════════════════════════════════════════╝ */
+/* ══════════════════════════════
+   KPI 카드
+══════════════════════════════ */
 .kpi-wrap {
     background: white;
     border-radius: 16px;
-    padding: 24px 20px 20px 20px;
+    padding: 24px 22px 20px 22px;
     border-left: 5px solid;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.07);
     height: 100%;
-    transition: transform 0.12s;
+    transition: transform 0.15s;
 }
 .kpi-wrap:hover { transform: translateY(-2px); }
 .kpi-label {
-    font-size: 12px;
+    font-size: 13px;
     color: #64748B;
     font-weight: 700;
-    letter-spacing: 0.07em;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
     margin-bottom: 10px;
 }
 .kpi-value {
-    font-size: 34px;
+    font-size: 36px;
     font-weight: 900;
     line-height: 1;
     letter-spacing: -0.02em;
 }
-.kpi-sub { font-size: 13px; color: #94A3B8; margin-top: 8px; }
-
-
-/* ╔══════════════════════════════════════════════╗
-   ║  인라인 필터 카드 (탭 내부)                  ║
-   ╚══════════════════════════════════════════════╝ */
-.filter-card {
-    background: #F5F8FF;
-    border-radius: 12px;
-    padding: 16px 20px 14px 20px;
-    border: 1.5px solid #C3D8F5;
-    margin-bottom: 16px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+.kpi-sub {
+    font-size: 13px;
+    color: #94A3B8;
+    margin-top: 8px;
 }
 
+/* ══════════════════════════════
+   인라인 필터 박스
+   (탭 내부 흰 배경과 구분)
+══════════════════════════════ */
+.filter-card {
+    background: #F0F5FF;
+    border-radius: 12px;
+    padding: 18px 22px 14px 22px;
+    border: 1.5px solid #BFDBFE;
+    margin-bottom: 16px;
+}
+.filter-label {
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    color: #1D4ED8 !important;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    display: block;
+}
 
-/* ╔══════════════════════════════════════════════╗
-   ║  섹션 카드                                   ║
-   ╚══════════════════════════════════════════════╝ */
+/* ══════════════════════════════
+   섹션 카드
+══════════════════════════════ */
 .section-card {
     background: white;
     border-radius: 16px;
@@ -288,18 +276,18 @@ section[data-testid="stSidebar"] svg { color: #4B7AB8 !important; fill: #4B7AB8 
     margin-bottom: 16px;
 }
 .section-title {
-    font-size: 16px;
+    font-size: 17px;
     font-weight: 700;
     color: #0F172A;
-    margin-bottom: 16px;
-    padding-bottom: 11px;
+    margin-bottom: 18px;
+    padding-bottom: 12px;
     border-bottom: 2px solid #EFF6FF;
+    letter-spacing: -0.01em;
 }
 
-
-/* ╔══════════════════════════════════════════════╗
-   ║  탭                                          ║
-   ╚══════════════════════════════════════════════╝ */
+/* ══════════════════════════════
+   탭
+══════════════════════════════ */
 .stTabs [data-baseweb="tab-list"] {
     gap: 8px;
     background: transparent;
@@ -308,12 +296,12 @@ section[data-testid="stSidebar"] svg { color: #4B7AB8 !important; fill: #4B7AB8 
 .stTabs [data-baseweb="tab"] {
     background: white;
     border-radius: 10px;
-    padding: 10px 24px;
+    padding: 11px 26px;
     font-size: 15px;
     font-weight: 600;
     color: #475569;
     border: 1.5px solid #CBD5E1;
-    transition: all 0.12s;
+    transition: all 0.15s;
 }
 .stTabs [data-baseweb="tab"]:hover {
     border-color: #93C5FD;
@@ -323,50 +311,69 @@ section[data-testid="stSidebar"] svg { color: #4B7AB8 !important; fill: #4B7AB8 
     background: #1D4ED8 !important;
     color: white !important;
     border-color: #1D4ED8 !important;
-    box-shadow: 0 4px 12px rgba(29,78,216,0.28);
+    box-shadow: 0 4px 12px rgba(29,78,216,0.3);
 }
 
-
-/* ╔══════════════════════════════════════════════╗
-   ║  분석 리포트                                 ║
-   ╚══════════════════════════════════════════════╝ */
+/* ══════════════════════════════
+   분석 리포트
+══════════════════════════════ */
 .report-box {
-    background: linear-gradient(135deg, #EFF6FF, #F0FDF4);
+    background: linear-gradient(135deg, #EFF6FF 0%, #F0FDF4 100%);
     border-radius: 12px;
-    padding: 20px 22px;
+    padding: 22px 24px;
     border: 1px solid #BFDBFE;
-    line-height: 1.95;
+    line-height: 2.0;
     color: #1E3A5F;
-    font-size: 14px;
+    font-size: 15px;
 }
 .report-box strong { color: #1D4ED8; }
-.report-tag-warn { background:#FEF9C3; color:#92400E; padding:3px 10px; border-radius:99px; font-size:12px; font-weight:700; display:inline-block; margin-right:4px; }
-.report-tag-ok   { background:#D1FAE5; color:#065F46; padding:3px 10px; border-radius:99px; font-size:12px; font-weight:700; display:inline-block; margin-right:4px; }
-.report-tag-bad  { background:#FEE2E2; color:#991B1B; padding:3px 10px; border-radius:99px; font-size:12px; font-weight:700; display:inline-block; margin-right:4px; }
+.report-tag-warn {
+    background:#FEF9C3; color:#92400E;
+    padding:3px 10px; border-radius:99px;
+    font-size:12px; font-weight:700;
+    display:inline-block; margin-right:4px;
+}
+.report-tag-ok {
+    background:#D1FAE5; color:#065F46;
+    padding:3px 10px; border-radius:99px;
+    font-size:12px; font-weight:700;
+    display:inline-block; margin-right:4px;
+}
+.report-tag-bad {
+    background:#FEE2E2; color:#991B1B;
+    padding:3px 10px; border-radius:99px;
+    font-size:12px; font-weight:700;
+    display:inline-block; margin-right:4px;
+}
 
-
-/* ╔══════════════════════════════════════════════╗
-   ║  테이블                                      ║
-   ╚══════════════════════════════════════════════╝ */
-.dataframe { font-size: 14px !important; }
+/* ══════════════════════════════
+   테이블
+══════════════════════════════ */
+.dataframe {
+    font-size: 14px !important;
+    border-radius: 8px !important;
+    overflow: hidden !important;
+}
 .dataframe thead th {
     font-size: 13px !important;
     font-weight: 700 !important;
     background: #EFF6FF !important;
     color: #1E3A5F !important;
-    padding: 10px 12px !important;
+    padding: 10px 14px !important;
 }
-.dataframe tbody td { font-size: 14px !important; padding: 8px 12px !important; }
+.dataframe tbody td {
+    font-size: 14px !important;
+    padding: 9px 14px !important;
+}
 
-
-/* ╔══════════════════════════════════════════════╗
-   ║  기타                                        ║
-   ╚══════════════════════════════════════════════╝ */
+/* ══════════════════════════════
+   전반적 본문 글씨
+══════════════════════════════ */
 p { font-size: 15px !important; }
 .stMarkdown p { font-size: 15px !important; }
 small, .stCaption { font-size: 13px !important; }
-.stAlert { font-size: 15px !important; }
 
+/* 다운로드 버튼 */
 .stDownloadButton > button {
     background: #1D4ED8 !important;
     color: white !important;
@@ -375,9 +382,13 @@ small, .stCaption { font-size: 13px !important; }
     font-size: 15px !important;
     font-weight: 600 !important;
     padding: 10px 24px !important;
-    box-shadow: 0 2px 8px rgba(29,78,216,0.25) !important;
 }
-.stDownloadButton > button:hover { background: #1E40AF !important; }
+.stDownloadButton > button:hover {
+    background: #1E40AF !important;
+}
+
+/* warning/info 박스 */
+.stAlert { font-size: 15px !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -713,77 +724,58 @@ with tab1:
     with col_rep:
         st.markdown('<div class="section-card">', unsafe_allow_html=True)
         st.markdown('<div class="section-title">자동 분석 요약</div>', unsafe_allow_html=True)
-        st.markdown(build_report_html(df_ov, month_label), unsafe_allow_html=True)
+
+        sr_agg2 = df_ov.groupby("series").agg(
+            f=("forecast","sum"), a=("actual","sum")
+        ).reset_index()
+        sr_agg2["달성률"] = np.where(
+            sr_agg2["f"] > 0, (sr_agg2["a"]/sr_agg2["f"]*100).round(1), 0
+        )
+        sr_agg2["오차량"] = (sr_agg2["a"] - sr_agg2["f"]).abs()
+        top_err = sr_agg2.sort_values("오차량", ascending=False).head(3)
+        under_s = sr_agg2[sr_agg2["달성률"] < 90].sort_values("달성률").head(3)
+        over_s  = sr_agg2[sr_agg2["달성률"] > 110].sort_values("달성률", ascending=False).head(3)
+
+        color_r = "#10B981" if t_r >= 100 else "#EF4444"
+        trend_w = "초과달성" if t_r >= 100 else "미달"
+
+        html_r = f"""
+        <div class="report-box">
+            <b>{month_label}</b> 기준 전체 달성률은
+            <b style="color:{color_r}; font-size:16px">{fmt_pct(t_r)}</b>으로
+            예측 대비 <b style="color:{color_r}">{trend_w}</b> 상태입니다.<br><br>
+        """
+        if not top_err.empty:
+            html_r += "<b>📍 오차 상위 시리즈</b><br>"
+            for _, row in top_err.iterrows():
+                if row["달성률"] < 90:
+                    tag = '<span class="report-tag-bad">과소예측</span>'
+                elif row["달성률"] > 110:
+                    tag = '<span class="report-tag-warn">과대예측</span>'
+                else:
+                    tag = '<span class="report-tag-ok">양호</span>'
+                html_r += (
+                    f"&nbsp;&nbsp;{tag} <b>{row['series']}</b> "
+                    f"달성률 {row['달성률']:.1f}% "
+                    f"(오차 {fmt_int(row['오차량'])}건)<br>"
+                )
+
+        if not under_s.empty:
+            names = ", ".join(under_s["series"].tolist())
+            html_r += f"<br><b>⚠️ 과소예측 (달성률 &lt;90%)</b>: {names}<br>"
+        if not over_s.empty:
+            names = ", ".join(over_s["series"].tolist())
+            html_r += f"<b>🔺 과대예측 (달성률 &gt;110%)</b>: {names}<br>"
+
+        html_r += """
+            <br><b>💡 권장 조치</b><br>
+            &nbsp;&nbsp;① 오차 상위 품목의 재고·채널 현황 즉시 점검<br>
+            &nbsp;&nbsp;② 과소예측 품목은 반품·납기 원인 확인<br>
+            &nbsp;&nbsp;③ 다음 예측 주기에 최근 3개월 추세 가중치 반영
+        </div>
+        """
+        st.markdown(html_r, unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
-
-
-# ══════════════════════════════════════════════
-#  공통 유틸: 분석 요약 HTML 생성
-#  df      : 분석 대상 DataFrame (mg_all 기준 필터 적용 후)
-#  context : 어디서 호출했는지 표기용 문자열 (예: "2026년 02월")
-#  search  : 검색어 (탭4에서 전달, 없으면 빈 문자열)
-# ══════════════════════════════════════════════
-def build_report_html(df: pd.DataFrame, context: str, search: str = "") -> str:
-    t_f  = int(df["forecast"].sum())
-    t_a  = int(df["actual"].sum())
-    t_d  = t_a - t_f
-    t_r  = round(t_a / t_f * 100, 1) if t_f > 0 else 0.0
-
-    sr = df.groupby("series").agg(f=("forecast","sum"), a=("actual","sum")).reset_index()
-    sr["달성률"] = np.where(sr["f"] > 0, (sr["a"] / sr["f"] * 100).round(1), 0)
-    sr["오차량"] = (sr["a"] - sr["f"]).abs()
-
-    top_err = sr.sort_values("오차량", ascending=False).head(3)
-    under_s = sr[sr["달성률"] < 90].sort_values("달성률").head(3)
-    over_s  = sr[sr["달성률"] > 110].sort_values("달성률", ascending=False).head(3)
-
-    color_r = "#10B981" if t_r >= 100 else "#EF4444"
-    trend_w = "초과달성" if t_r >= 100 else "미달"
-
-    # 검색어가 있으면 맥락 표시
-    ctx_note = ""
-    if search:
-        ctx_note = f' &nbsp;·&nbsp; <span style="color:#64748B; font-size:13px">검색어: <b>{search}</b></span>'
-
-    html = f"""
-    <div class="report-box">
-        <b>{context}</b>{ctx_note} 기준 전체 달성률은
-        <b style="color:{color_r}; font-size:16px">{fmt_pct(t_r)}</b>으로
-        예측 대비 <b style="color:{color_r}">{trend_w}</b> 상태입니다.
-        &nbsp;(예측 <b>{fmt_int(t_f)}</b> → 실수주 <b>{fmt_int(t_a)}</b>,
-        차이 <b style="color:{color_r}">{'+' if t_d>=0 else ''}{fmt_int(t_d)}</b>건)<br><br>
-    """
-
-    if not top_err.empty:
-        html += "<b>📍 오차 상위 시리즈</b><br>"
-        for _, row in top_err.iterrows():
-            if row["달성률"] < 90:
-                tag = '<span class="report-tag-bad">과소예측</span>'
-            elif row["달성률"] > 110:
-                tag = '<span class="report-tag-warn">과대예측</span>'
-            else:
-                tag = '<span class="report-tag-ok">양호</span>'
-            html += (
-                f"&nbsp;&nbsp;{tag} <b>{row['series']}</b> "
-                f"달성률 {row['달성률']:.1f}% "
-                f"(오차 {fmt_int(row['오차량'])}건)<br>"
-            )
-
-    if not under_s.empty:
-        names = ", ".join(under_s["series"].tolist())
-        html += f"<br><b>⚠️ 과소예측 (달성률 &lt;90%)</b>: {names}<br>"
-    if not over_s.empty:
-        names = ", ".join(over_s["series"].tolist())
-        html += f"<b>🔺 과대예측 (달성률 &gt;110%)</b>: {names}<br>"
-
-    html += """
-        <br><b>💡 권장 조치</b><br>
-        &nbsp;&nbsp;① 오차 상위 품목의 재고·채널 현황 즉시 점검<br>
-        &nbsp;&nbsp;② 과소예측 품목은 반품·납기 원인 확인<br>
-        &nbsp;&nbsp;③ 다음 예측 주기에 최근 3개월 추세 가중치 반영
-    </div>
-    """
-    return html
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1204,21 +1196,3 @@ with tab4:
             file_name=f"forecast_detail_{sel_ym}.csv",
             mime="text/csv"
         )
-
-        # ── 하단 자동 분석 요약 (검색/필터 적용 결과 기준)
-        st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
-        st.markdown('<div class="section-card">', unsafe_allow_html=True)
-        st.markdown('<div class="section-title">🤖 자동 분석 요약 <span style="font-size:13px; font-weight:400; color:#94A3B8">— 현재 조건 기준</span></div>', unsafe_allow_html=True)
-
-        if df_det2.empty or df_det2["forecast"].sum() == 0:
-            st.info("분석할 데이터가 없습니다. 검색 조건을 확인하세요.")
-        else:
-            # 검색어 적용 전 전체(df_det) 기준 컨텍스트 레이블
-            supply_label = f" · {sel_supply}" if sel_supply != "전체" else ""
-            search_label = search if search else ""
-            ctx = f"{month_label}{supply_label}"
-            st.markdown(
-                build_report_html(df_det2, ctx, search_label),
-                unsafe_allow_html=True
-            )
-        st.markdown('</div>', unsafe_allow_html=True)
