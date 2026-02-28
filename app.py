@@ -24,46 +24,48 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# 2. 데이터 로드 및 초정밀 전처리 (시리즈 오류 해결)
+# 2. 데이터 로드 및 초정밀 전처리 (시리즈 명칭 오류 완벽 해결)
 @st.cache_data
 def load_data():
     f = pd.read_csv("forecast_data.csv")
     a = pd.read_csv("actual_data.csv")
     
-    # 공급단 NaN 행 제외
-    f = f.dropna(subset=['supply'])
-    
     def clean_strings(df):
+        # 모든 텍스트 컬럼에서 NaN을 제거하고 앞뒤 공백을 없애 명칭 통일
         for col in df.select_dtypes(include=['object']).columns:
-            # NaN 처리 및 앞뒤 공백 제거로 시리즈 중복 방지
             df[col] = df[col].fillna("").astype(str).str.strip()
         return df
 
     f, a = clean_strings(f), clean_strings(a)
-    # 유효하지 않은 시리즈 명칭 제거
-    f = f[~f['series'].isin(["", "nan", "미분류"])]
+    
+    # 시리즈명이 비어있거나 'nan'으로 적힌 행은 필터에서 제외
+    f = f[~f['series'].isin(["", "nan", "None", "미분류"])]
+    # 공급단 NaN 행 제외
+    f = f[f['supply'] != ""]
+    
     return f, a
 
 f_df, a_df = load_data()
 
-# 3. 사이드바 필터 (동적 연동)
-st.sidebar.title("🔍 필터 설정")
+# 3. 사이드바 필터 (동적 연동 및 정렬)
+st.sidebar.title("🔍 필터 및 분석 설정")
 sel_ym = st.sidebar.selectbox("📅 기준 년월", sorted(f_df["ym"].unique(), reverse=True))
 
-# 브랜드 필터
+# 브랜드 선택
 all_brands = sorted(f_df["brand"].unique().tolist())
 sel_br = st.sidebar.multiselect("🏷️ 브랜드", all_brands, default=all_brands)
 
-# 시리즈 필터 (선택된 브랜드 내의 시리즈만 중복 없이 추출)
-current_brands_f = f_df[f_df["brand"].isin(sel_br)]
-all_series = sorted(current_brands_f["series"].unique().tolist())
+# [수정] 시리즈 필터 명칭 정상화 (선택된 브랜드 내의 고유 시리즈만 추출)
+current_f = f_df[f_df["brand"].isin(sel_br)]
+all_series = sorted(current_f["series"].unique().tolist())
 sel_sr = st.sidebar.multiselect("🪑 시리즈 선택", all_series, default=all_series)
 
 # 공급단 필터
 all_supplies = sorted(f_df["supply"].unique().tolist())
 sel_sp = st.sidebar.multiselect("🏭 공급단 선택", all_supplies, default=all_supplies)
 
-sort_metric = st.sidebar.selectbox("🔢 정렬 기준", ["예측량 높은순", "실적량 높은순", "달성률 높은순"])
+# 분석 정렬 기준 (사이드바로 이동)
+sort_metric = st.sidebar.selectbox("🔢 주요 품목 정렬 기준", ["예측량 높은순", "실적량 높은순", "달성률 높은순"])
 
 # 4. 데이터 필터링 및 병합
 f_sel = f_df[(f_df["ym"] == sel_ym) & (f_df["brand"].isin(sel_br)) & 
@@ -75,64 +77,60 @@ mg["actual"] = mg["actual"].fillna(0)
 mg["차이"] = mg["actual"] - mg["forecast"]
 mg["달성률(%)"] = np.where(mg["forecast"] > 0, (mg["actual"] / mg["forecast"] * 100).round(1), 0)
 
-# 정렬 적용
-sort_map = {"예측량 높은순": ("forecast", False), "실적량 높은순": ("actual", False), "달성률 높은순": ("달성률(%)", False)}
-mg = mg.sort_values(by=sort_map[sort_metric][0], ascending=sort_map[sort_metric][1])
-
-# 5. 메인 화면 - [분석 리포트 섹션]
-st.title(f"📊 {sel_ym} 수요 분석 보고서")
+# 5. 메인 분석 리포트
+st.title(f"📊 {sel_ym} 수요 및 시리즈 분석 리포트")
 
 if not mg.empty:
-    total_f = mg['forecast'].sum()
-    total_a = mg['actual'].sum()
+    total_f, total_a = mg['forecast'].sum(), mg['actual'].sum()
     avg_rate = mg['달성률(%)'].mean()
     
-    # 주요 품목 TOP 5 리스트 생성
+    # 정렬 적용
+    sort_map = {"예측량 높은순": ("forecast", False), "실적량 높은순": ("actual", False), "달성률 높은순": ("달성률(%)", False)}
+    mg = mg.sort_values(by=sort_map[sort_metric][0], ascending=sort_map[sort_metric][1])
+    
+    # 상세 분석 박스 구성
     top_5 = mg.head(5)
-    item_analysis_html = ""
+    item_list_html = ""
     for i, (_, row) in enumerate(top_5.iterrows(), 1):
         cb = str(row['combo'])
         code = cb.split('-')[0] if '-' in cb else cb
-        color = cb.split('-')[1] if '-' in cb else "기본"
-        item_analysis_html += f"""
+        color = cb.split('-')[1] if '-' in cb else "정보없음"
+        item_list_html += f"""
         <div class="item-card">
             <strong>{i}. {row['name']}</strong> (시리즈: {row['series']})<br>
             • <strong>식별 정보:</strong> 단품코드 <code>{code}</code> | 색상 <code>{color}</code><br>
-            • <strong>수치 분석:</strong> 예측 <strong>{int(row['forecast']):,}</strong> 대비 실적 <strong>{int(row['actual']):,}</strong>으로 
-              달성률 <strong>{row['달성률(%)']:.1f}%</strong>를 기록 중입니다.
+            • <strong>분석 수치:</strong> 예측 <strong>{int(row['forecast']):,}</strong> 대비 실적 <strong>{int(row['actual']):,}</strong> 달성 (달성률 <strong>{row['달성률(%)']:.1f}%</strong>)
         </div>"""
 
     st.markdown(f"""
     <div class="analysis-box">
-        <strong>💡 필터 결과 요약 분석</strong><br>
-        1. <strong>전체 현황:</strong> 총 예측량은 <strong>{int(total_f):,}</strong>이며, 실제 수주량은 <strong>{int(total_a):,}</strong>입니다.<br>
-        2. <strong>평균 달성률:</strong> 분석 품목군 평균 달성률은 <strong>{avg_rate:.1f}%</strong>입니다. {'(양호)' if avg_rate >= 90 else '(주의 요망)'}<br><br>
-        <strong>🔍 주요 품목 상세 분석 (TOP 5)</strong><br>
-        {item_analysis_html}
+        <strong>💡 종합 분석 요약</strong><br>
+        1. <strong>전체 현황:</strong> 총 예측량 <strong>{int(total_f):,}</strong> 대비 실제 수주량 <strong>{int(total_a):,}</strong>을 기록했습니다.<br>
+        2. <strong>평균 달성률:</strong> 분석 대상 품목군 평균 달성률은 <strong>{avg_rate:.1f}%</strong>입니다. {'(수급 양호)' if avg_rate >= 90 else '(수급 저조 - 대응 필요)'}<br><br>
+        <strong>🔍 주요 관리 품목 (TOP 5 상세 분석)</strong><br>
+        {item_list_html}
     </div>
     """, unsafe_allow_html=True)
 
-# 6. 시리즈별 시각화 분석 (차이량 및 달성률)
-st.markdown('<div class="section-header">📈 시리즈별 예측/실적 차이 및 달성률</div>', unsafe_allow_html=True)
-series_agg = mg.groupby('series').agg({
-    'forecast': 'sum', 'actual': 'sum', '차이': 'sum'
-}).reset_index()
-series_agg['달성률(%)'] = (series_agg['actual'] / series_agg['forecast'] * 100).round(1)
+# 6. 시리즈별 차이량 및 달성률 (시각화 분석 추가)
+st.markdown('<div class="section-header">📈 시리즈별 수급 차이량 및 달성률 현황</div>', unsafe_allow_html=True)
+s_agg = mg.groupby('series').agg({'forecast':'sum', 'actual':'sum', '차이':'sum'}).reset_index()
+s_agg['달성률(%)'] = (s_agg['actual'] / s_agg['forecast'] * 100).round(1)
 
 fig = go.Figure()
-fig.add_trace(go.Bar(x=series_agg['series'], y=series_agg['차이'], name='예측 대비 차이량', marker_color='#fb7185'))
-fig.add_trace(go.Scatter(x=series_agg['series'], y=series_agg['달성률(%)'], name='달성률(%)', yaxis='y2', line=dict(color='#2563eb', width=3)))
+fig.add_trace(go.Bar(x=s_agg['series'], y=s_agg['차이'], name='예측 대비 차이량', marker_color='#fb7185'))
+fig.add_trace(go.Scatter(x=s_agg['series'], y=s_agg['달성률(%)'], name='달성률(%)', yaxis='y2', line=dict(color='#2563eb', width=3)))
 
 fig.update_layout(
-    template='plotly_white',
+    template='plotly_white', height=400,
     yaxis=dict(title="차이량 (실적-예측)"),
-    yaxis2=dict(title="달성률 (%)", overlaying='y', side='right', range=[0, max(series_agg['달성률(%)'].max(), 120)]),
+    yaxis2=dict(title="달성률 (%)", overlaying='y', side='right', range=[0, 150]),
     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
 )
 st.plotly_chart(fig, use_container_width=True)
 
 # 7. 상세 데이터 표
-st.markdown('<div class="section-header">📋 상세 데이터 현황</div>', unsafe_allow_html=True)
+st.markdown('<div class="section-header">📋 상세 내역 요약표</div>', unsafe_allow_html=True)
 display_df = mg.rename(columns={
     "brand": "브랜드", "series": "시리즈", "combo": "단품코드", "name": "품목명", "forecast": "예측", "actual": "실적"
 })[["브랜드", "시리즈", "단품코드", "품목명", "예측", "실적", "차이", "달성률(%)"]]
