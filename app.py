@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 #  페이지 설정
 # ══════════════════════════════════════════════
 st.set_page_config(
-    page_title="수요예측 대시보드",
+    page_title="의자 수요예측 대비 실적 분석 대시보드",
     page_icon="📦",
     layout="wide",
     initial_sidebar_state="expanded",
