@@ -19,255 +19,267 @@ st.set_page_config(
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap');
+
+/* ══════════════════════════════════════════════════
+   기본
+══════════════════════════════════════════════════ */
 html, body, [class*="css"] {
     font-family: 'Noto Sans KR', sans-serif;
     font-size: 15px;
 }
-
-/* ══════════════════════════════
-   전체 배경
-══════════════════════════════ */
 .stApp { background-color: #EAECF4; }
 
-/* ══════════════════════════════
-   사이드바
-══════════════════════════════ */
+
+/* ╔══════════════════════════════════════════════╗
+   ║  사이드바 — 다크 테마로 완전 격리            ║
+   ╚══════════════════════════════════════════════╝ */
 section[data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #0A1628 0%, #172035 100%);
-    border-right: 1px solid #2A3A52;
+    background: #0F1E30 !important;
+    border-right: 1px solid #1E3048 !important;
 }
-section[data-testid="stSidebar"] p,
-section[data-testid="stSidebar"] span,
-section[data-testid="stSidebar"] div,
+
+/* 사이드바 안의 모든 텍스트 */
+section[data-testid="stSidebar"] *  { color: #C8D6E8 !important; }
+
+/* 사이드바 라벨 (필터 제목) */
 section[data-testid="stSidebar"] label {
-    color: #DDE3EE !important;
-}
-section[data-testid="stSidebar"] .stSelectbox > div > div,
-section[data-testid="stSidebar"] .stMultiSelect > div > div {
-    background: #1C2B3F !important;
-    border: 2px solid #3D5A80 !important;
-    border-radius: 8px !important;
-    color: #EEF2FF !important;
-}
-section[data-testid="stSidebar"] .stMultiSelect span[data-baseweb="tag"] {
-    background: #2563EB !important;
-    color: white !important;
     font-size: 13px !important;
     font-weight: 700 !important;
+    letter-spacing: 0.06em !important;
+    text-transform: uppercase !important;
+    color: #6B93BF !important;
+    margin-bottom: 6px !important;
+}
+
+/* 사이드바 selectbox 컨테이너 */
+section[data-testid="stSidebar"] .stSelectbox > div > div {
+    background: #162032 !important;
+    border: 1.5px solid #2C4A6A !important;
+    border-radius: 8px !important;
+    min-height: 42px !important;
+    color: #E8F0FA !important;
+}
+section[data-testid="stSidebar"] .stSelectbox > div > div:hover {
+    border-color: #4B7AB8 !important;
+    background: #1A2840 !important;
+}
+/* 사이드바 selectbox 선택된 값 */
+section[data-testid="stSidebar"] .stSelectbox > div > div > div {
+    color: #E8F0FA !important;
+    font-size: 15px !important;
+    font-weight: 600 !important;
+}
+
+/* 사이드바 multiselect 컨테이너 */
+section[data-testid="stSidebar"] .stMultiSelect > div > div {
+    background: #162032 !important;
+    border: 1.5px solid #2C4A6A !important;
+    border-radius: 8px !important;
+    min-height: 42px !important;
+}
+section[data-testid="stSidebar"] .stMultiSelect > div > div:hover {
+    border-color: #4B7AB8 !important;
+}
+
+/* 사이드바 multiselect 태그 — 통일된 파랑 계열 */
+section[data-testid="stSidebar"] .stMultiSelect [data-baseweb="tag"] {
+    background: #1D4ED8 !important;
+    border: none !important;
+    border-radius: 6px !important;
+    padding: 4px 10px 4px 12px !important;
+    margin: 2px !important;
+}
+section[data-testid="stSidebar"] .stMultiSelect [data-baseweb="tag"] span {
+    color: #FFFFFF !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+}
+/* 태그 X 버튼 */
+section[data-testid="stSidebar"] .stMultiSelect [data-baseweb="tag"] [role="presentation"] {
+    color: rgba(255,255,255,0.7) !important;
+}
+
+/* 사이드바 구분선 */
+section[data-testid="stSidebar"] hr {
+    border: none !important;
+    border-top: 1px solid #1E3048 !important;
+    margin: 16px 0 !important;
+}
+
+/* 사이드바 화살표(드롭다운 아이콘) */
+section[data-testid="stSidebar"] svg { color: #4B7AB8 !important; fill: #4B7AB8 !important; }
+
+
+/* ╔══════════════════════════════════════════════╗
+   ║  본문 인터랙티브 — 라이트 테마               ║
+   ╚══════════════════════════════════════════════╝ */
+
+/* 본문 모든 위젯 라벨 */
+.main .stSelectbox label,
+.main .stMultiSelect label,
+.main .stSlider label,
+.main .stTextInput label,
+.main .stRadio label,
+.main .stRadio > label {
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    color: #1E3A5F !important;
+    margin-bottom: 5px !important;
+}
+
+/* 본문 Selectbox */
+.main .stSelectbox > div > div {
+    background: #FFFFFF !important;
+    border: 1.5px solid #B0C8E8 !important;
+    border-radius: 8px !important;
+    font-size: 15px !important;
+    font-weight: 500 !important;
+    color: #1E293B !important;
+    min-height: 42px !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06) !important;
+}
+.main .stSelectbox > div > div:hover {
+    border-color: #3B82F6 !important;
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.12) !important;
+}
+
+/* 본문 Multiselect */
+.main .stMultiSelect > div > div {
+    background: #FFFFFF !important;
+    border: 1.5px solid #B0C8E8 !important;
+    border-radius: 8px !important;
+    font-size: 15px !important;
+    color: #1E293B !important;
+    min-height: 42px !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06) !important;
+}
+.main .stMultiSelect > div > div:hover {
+    border-color: #3B82F6 !important;
+}
+/* 본문 multiselect 태그 */
+.main .stMultiSelect [data-baseweb="tag"] {
+    background: #DBEAFE !important;
+    border: 1px solid #93C5FD !important;
     border-radius: 6px !important;
     padding: 3px 10px !important;
 }
-section[data-testid="stSidebar"] .stMultiSelect span[data-baseweb="tag"] span {
-    color: white !important;
-}
-section[data-testid="stSidebar"] hr {
-    border-color: #2A3A52 !important;
-    margin: 16px 0 !important;
-}
-section[data-testid="stSidebar"] .stSelectbox label,
-section[data-testid="stSidebar"] .stMultiSelect label {
-    font-size: 14px !important;
-    font-weight: 700 !important;
-    color: #93B4D8 !important;
-    margin-bottom: 6px !important;
-}
-
-/* ══════════════════════════════
-   ★ 본문 인터랙티브 요소 공통
-   (흰 배경 카드 안에서도 잘 보이도록)
-══════════════════════════════ */
-
-/* 라벨 전체 */
-.stSelectbox label,
-.stMultiSelect label,
-.stSlider label,
-.stTextInput label,
-.stRadio label {
-    font-size: 15px !important;
-    font-weight: 700 !important;
-    color: #1E3A5F !important;
-    margin-bottom: 6px !important;
-}
-
-/* ── Selectbox ── */
-.stSelectbox > div > div {
-    background: #F0F5FF !important;
-    border: 2px solid #93C5FD !important;
-    border-radius: 8px !important;
-    font-size: 15px !important;
-    font-weight: 600 !important;
-    color: #1E3A5F !important;
-    min-height: 44px !important;
-}
-.stSelectbox > div > div:hover {
-    border-color: #2563EB !important;
-    background: #EBF2FF !important;
-}
-/* 선택된 텍스트 */
-.stSelectbox [data-testid="stMarkdownContainer"] p {
-    font-size: 15px !important;
-    font-weight: 600 !important;
-    color: #1E3A5F !important;
-}
-
-/* ── Multiselect ── */
-.stMultiSelect > div > div {
-    background: #F0F5FF !important;
-    border: 2px solid #93C5FD !important;
-    border-radius: 8px !important;
-    font-size: 15px !important;
-    color: #1E3A5F !important;
-    min-height: 44px !important;
-}
-.stMultiSelect > div > div:hover {
-    border-color: #2563EB !important;
-}
-/* 본문 멀티셀렉트 태그 */
-.stMultiSelect span[data-baseweb="tag"] {
-    background: #DBEAFE !important;
+.main .stMultiSelect [data-baseweb="tag"] span {
     color: #1D4ED8 !important;
     font-size: 13px !important;
     font-weight: 700 !important;
-    border-radius: 6px !important;
-    border: 1px solid #93C5FD !important;
 }
 
-/* ── Slider ── */
-/* 트랙 전체 배경 */
-.stSlider [data-testid="stSlider"] > div > div > div {
+/* 본문 Slider */
+.main [data-testid="stSlider"] > div > div > div {
     background: #CBD5E1 !important;
     height: 6px !important;
     border-radius: 3px !important;
 }
-/* 채워진 트랙 */
-.stSlider [data-testid="stSlider"] > div > div > div > div {
+.main [data-testid="stSlider"] > div > div > div > div {
     background: #2563EB !important;
-    height: 6px !important;
 }
-/* 슬라이더 썸(원형 핸들) */
-[data-testid="stSlider"] div[role="slider"] {
-    background: white !important;
+.main [data-testid="stSlider"] div[role="slider"] {
+    background: #FFFFFF !important;
     border: 3px solid #2563EB !important;
     width: 22px !important;
     height: 22px !important;
-    box-shadow: 0 2px 8px rgba(37,99,235,0.35) !important;
-    top: -8px !important;
+    box-shadow: 0 2px 6px rgba(37,99,235,0.3) !important;
 }
-[data-testid="stSlider"] div[role="slider"]:hover {
-    border-color: #1D4ED8 !important;
-    box-shadow: 0 0 0 6px rgba(37,99,235,0.15) !important;
+.main [data-testid="stSlider"] div[role="slider"]:hover {
+    box-shadow: 0 0 0 6px rgba(37,99,235,0.12) !important;
 }
-/* 슬라이더 현재값 숫자 */
-[data-testid="stSlider"] div[data-testid="stTickBarMin"],
-[data-testid="stSlider"] div[data-testid="stTickBarMax"] {
-    font-size: 13px !important;
-    color: #64748B !important;
-    font-weight: 600 !important;
-}
-/* 슬라이더 값 표시 bubble */
-.stSlider p {
+.main .stSlider p {
     font-size: 16px !important;
     font-weight: 700 !important;
     color: #1E3A5F !important;
 }
 
-/* ── Text Input ── */
-.stTextInput > div > div > input {
-    background: #F8FAFF !important;
-    border: 2px solid #CBD5E1 !important;
+/* 본문 Text Input */
+.main .stTextInput > div > div > input {
+    background: #FFFFFF !important;
+    border: 1.5px solid #B0C8E8 !important;
     border-radius: 8px !important;
     font-size: 15px !important;
-    color: #1E3A5F !important;
+    color: #1E293B !important;
     padding: 10px 14px !important;
-    min-height: 44px !important;
+    min-height: 42px !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06) !important;
 }
-.stTextInput > div > div > input:focus {
-    border-color: #2563EB !important;
-    box-shadow: 0 0 0 3px rgba(37,99,235,0.15) !important;
+.main .stTextInput > div > div > input:focus {
+    border-color: #3B82F6 !important;
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.12) !important;
+    outline: none !important;
 }
-.stTextInput > div > div > input::placeholder {
+.main .stTextInput > div > div > input::placeholder {
     color: #94A3B8 !important;
-    font-size: 14px !important;
 }
 
-/* ── Radio ── */
-.stRadio > div {
-    gap: 8px !important;
-}
-.stRadio > div > label {
+/* 본문 Radio */
+.main .stRadio > div { gap: 8px !important; }
+.main .stRadio > div > label {
     background: #F1F5F9 !important;
-    border: 2px solid #CBD5E1 !important;
+    border: 1.5px solid #CBD5E1 !important;
     border-radius: 8px !important;
-    padding: 8px 16px !important;
+    padding: 8px 18px !important;
     font-size: 14px !important;
     font-weight: 600 !important;
     color: #475569 !important;
     cursor: pointer !important;
-    transition: all 0.15s !important;
+    transition: all 0.12s !important;
 }
-.stRadio > div > label:has(input:checked) {
+.main .stRadio > div > label:has(input:checked) {
     background: #EFF6FF !important;
     border-color: #2563EB !important;
     color: #1D4ED8 !important;
 }
 
-/* ══════════════════════════════
-   KPI 카드
-══════════════════════════════ */
+
+/* ╔══════════════════════════════════════════════╗
+   ║  KPI 카드                                    ║
+   ╚══════════════════════════════════════════════╝ */
 .kpi-wrap {
     background: white;
     border-radius: 16px;
-    padding: 24px 22px 20px 22px;
+    padding: 24px 20px 20px 20px;
     border-left: 5px solid;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.07);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.06);
     height: 100%;
-    transition: transform 0.15s;
+    transition: transform 0.12s;
 }
 .kpi-wrap:hover { transform: translateY(-2px); }
 .kpi-label {
-    font-size: 13px;
+    font-size: 12px;
     color: #64748B;
     font-weight: 700;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.07em;
     text-transform: uppercase;
     margin-bottom: 10px;
 }
 .kpi-value {
-    font-size: 36px;
+    font-size: 34px;
     font-weight: 900;
     line-height: 1;
     letter-spacing: -0.02em;
 }
-.kpi-sub {
-    font-size: 13px;
-    color: #94A3B8;
-    margin-top: 8px;
-}
+.kpi-sub { font-size: 13px; color: #94A3B8; margin-top: 8px; }
 
-/* ══════════════════════════════
-   인라인 필터 박스
-   (탭 내부 흰 배경과 구분)
-══════════════════════════════ */
+
+/* ╔══════════════════════════════════════════════╗
+   ║  인라인 필터 카드 (탭 내부)                  ║
+   ╚══════════════════════════════════════════════╝ */
 .filter-card {
-    background: #F0F5FF;
+    background: #F5F8FF;
     border-radius: 12px;
-    padding: 18px 22px 14px 22px;
-    border: 1.5px solid #BFDBFE;
+    padding: 16px 20px 14px 20px;
+    border: 1.5px solid #C3D8F5;
     margin-bottom: 16px;
-}
-.filter-label {
-    font-size: 13px !important;
-    font-weight: 700 !important;
-    color: #1D4ED8 !important;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    margin-bottom: 6px;
-    display: block;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
 }
 
-/* ══════════════════════════════
-   섹션 카드
-══════════════════════════════ */
+
+/* ╔══════════════════════════════════════════════╗
+   ║  섹션 카드                                   ║
+   ╚══════════════════════════════════════════════╝ */
 .section-card {
     background: white;
     border-radius: 16px;
@@ -276,18 +288,18 @@ section[data-testid="stSidebar"] .stMultiSelect label {
     margin-bottom: 16px;
 }
 .section-title {
-    font-size: 17px;
+    font-size: 16px;
     font-weight: 700;
     color: #0F172A;
-    margin-bottom: 18px;
-    padding-bottom: 12px;
+    margin-bottom: 16px;
+    padding-bottom: 11px;
     border-bottom: 2px solid #EFF6FF;
-    letter-spacing: -0.01em;
 }
 
-/* ══════════════════════════════
-   탭
-══════════════════════════════ */
+
+/* ╔══════════════════════════════════════════════╗
+   ║  탭                                          ║
+   ╚══════════════════════════════════════════════╝ */
 .stTabs [data-baseweb="tab-list"] {
     gap: 8px;
     background: transparent;
@@ -296,12 +308,12 @@ section[data-testid="stSidebar"] .stMultiSelect label {
 .stTabs [data-baseweb="tab"] {
     background: white;
     border-radius: 10px;
-    padding: 11px 26px;
+    padding: 10px 24px;
     font-size: 15px;
     font-weight: 600;
     color: #475569;
     border: 1.5px solid #CBD5E1;
-    transition: all 0.15s;
+    transition: all 0.12s;
 }
 .stTabs [data-baseweb="tab"]:hover {
     border-color: #93C5FD;
@@ -311,69 +323,50 @@ section[data-testid="stSidebar"] .stMultiSelect label {
     background: #1D4ED8 !important;
     color: white !important;
     border-color: #1D4ED8 !important;
-    box-shadow: 0 4px 12px rgba(29,78,216,0.3);
+    box-shadow: 0 4px 12px rgba(29,78,216,0.28);
 }
 
-/* ══════════════════════════════
-   분석 리포트
-══════════════════════════════ */
+
+/* ╔══════════════════════════════════════════════╗
+   ║  분석 리포트                                 ║
+   ╚══════════════════════════════════════════════╝ */
 .report-box {
-    background: linear-gradient(135deg, #EFF6FF 0%, #F0FDF4 100%);
+    background: linear-gradient(135deg, #EFF6FF, #F0FDF4);
     border-radius: 12px;
-    padding: 22px 24px;
+    padding: 20px 22px;
     border: 1px solid #BFDBFE;
-    line-height: 2.0;
+    line-height: 1.95;
     color: #1E3A5F;
-    font-size: 15px;
+    font-size: 14px;
 }
 .report-box strong { color: #1D4ED8; }
-.report-tag-warn {
-    background:#FEF9C3; color:#92400E;
-    padding:3px 10px; border-radius:99px;
-    font-size:12px; font-weight:700;
-    display:inline-block; margin-right:4px;
-}
-.report-tag-ok {
-    background:#D1FAE5; color:#065F46;
-    padding:3px 10px; border-radius:99px;
-    font-size:12px; font-weight:700;
-    display:inline-block; margin-right:4px;
-}
-.report-tag-bad {
-    background:#FEE2E2; color:#991B1B;
-    padding:3px 10px; border-radius:99px;
-    font-size:12px; font-weight:700;
-    display:inline-block; margin-right:4px;
-}
+.report-tag-warn { background:#FEF9C3; color:#92400E; padding:3px 10px; border-radius:99px; font-size:12px; font-weight:700; display:inline-block; margin-right:4px; }
+.report-tag-ok   { background:#D1FAE5; color:#065F46; padding:3px 10px; border-radius:99px; font-size:12px; font-weight:700; display:inline-block; margin-right:4px; }
+.report-tag-bad  { background:#FEE2E2; color:#991B1B; padding:3px 10px; border-radius:99px; font-size:12px; font-weight:700; display:inline-block; margin-right:4px; }
 
-/* ══════════════════════════════
-   테이블
-══════════════════════════════ */
-.dataframe {
-    font-size: 14px !important;
-    border-radius: 8px !important;
-    overflow: hidden !important;
-}
+
+/* ╔══════════════════════════════════════════════╗
+   ║  테이블                                      ║
+   ╚══════════════════════════════════════════════╝ */
+.dataframe { font-size: 14px !important; }
 .dataframe thead th {
     font-size: 13px !important;
     font-weight: 700 !important;
     background: #EFF6FF !important;
     color: #1E3A5F !important;
-    padding: 10px 14px !important;
+    padding: 10px 12px !important;
 }
-.dataframe tbody td {
-    font-size: 14px !important;
-    padding: 9px 14px !important;
-}
+.dataframe tbody td { font-size: 14px !important; padding: 8px 12px !important; }
 
-/* ══════════════════════════════
-   전반적 본문 글씨
-══════════════════════════════ */
+
+/* ╔══════════════════════════════════════════════╗
+   ║  기타                                        ║
+   ╚══════════════════════════════════════════════╝ */
 p { font-size: 15px !important; }
 .stMarkdown p { font-size: 15px !important; }
 small, .stCaption { font-size: 13px !important; }
+.stAlert { font-size: 15px !important; }
 
-/* 다운로드 버튼 */
 .stDownloadButton > button {
     background: #1D4ED8 !important;
     color: white !important;
@@ -382,13 +375,9 @@ small, .stCaption { font-size: 13px !important; }
     font-size: 15px !important;
     font-weight: 600 !important;
     padding: 10px 24px !important;
+    box-shadow: 0 2px 8px rgba(29,78,216,0.25) !important;
 }
-.stDownloadButton > button:hover {
-    background: #1E40AF !important;
-}
-
-/* warning/info 박스 */
-.stAlert { font-size: 15px !important; }
+.stDownloadButton > button:hover { background: #1E40AF !important; }
 </style>
 """, unsafe_allow_html=True)
 
