@@ -68,15 +68,13 @@ def load_data():
         # 필수 컬럼 보장
         for col in ['ym','series','brand','combo','supply']:
             if col not in df.columns:
-                df[col] = ""
+                df[col] = np.nan
         df = df.dropna(subset=['series','brand','combo'])
         # 문자열 정리
         for col in df.select_dtypes(include=['object']).columns:
             df[col] = df[col].astype(str).str.strip()
-        # supply 컬럼의 'nan' 또는 빈값을 통일된 값으로 대체 (화면에 NaN이 보이지 않도록)
-        # 비어있거나 'nan' 문자열인 경우 '기타'로 채움
-        df['supply'] = df['supply'].replace({'nan': np.nan})
-        df['supply'] = df['supply'].fillna('기타')
+        # supply 컬럼: 빈 문자열 또는 'nan' 문자열을 실제 NaN으로 변환
+        df['supply'] = df['supply'].replace({'': np.nan, 'nan': np.nan})
         # 숫자형 시리즈 제거 및 길이 필터
         df = df[~df['series'].str.isnumeric()]
         df = df[df['series'].str.len() >= 2]
@@ -95,49 +93,64 @@ mg_all["오차량"] = mg_all["차이"].abs()
 mg_all["달성률(%)"] = np.where(mg_all["forecast"] > 0, (mg_all["actual"] / mg_all["forecast"] * 100).round(1), 0)
 
 # -----------------------
-# 사이드바: 한글 필터명, 시리즈 필터는 시리즈 수에 따라 UI 변경
+# 사이드바: 공통 필터 + 탭별 필터을 사이드바 expander로 배치
 # -----------------------
 st.sidebar.title("필터 설정")
 
-# 기준 년월
+# 공통 필터
 sel_ym = st.sidebar.selectbox("기준 년월", sorted(f_df["ym"].unique(), reverse=True))
-
-# 브랜드 선택
 all_brands = sorted(f_df["brand"].unique().tolist())
 sel_br = st.sidebar.multiselect("브랜드 선택", all_brands, default=all_brands)
 
-# 시리즈 선택 UI: 시리즈 수에 따라 동작
-available_series = sorted(f_df[f_df['brand'].isin(sel_br)]['series'].unique().tolist())
+# supply 옵션: NaN(결측)은 제외하여 '기타'가 보이지 않도록 함
+supply_options = ["전체"]
+if 'supply' in f_df.columns:
+    supply_values = f_df['supply'].dropna().unique().tolist()
+    supply_options += sorted(supply_values)
+
+# 시리즈 목록 (브랜드 선택에 따라 동적)
+available_series = sorted(f_df[f_df['brand'].isin(sel_br)]['series'].dropna().unique().tolist())
 series_count = len(available_series)
 
-st.sidebar.markdown("---")
-st.sidebar.write(f"시리즈 수: **{series_count}개**")
-
-if series_count == 0:
-    st.sidebar.info("선택된 브랜드에 시리즈 데이터가 없습니다.")
-elif series_count <= 30:
-    # 적은 수면 전체 목록을 보여주는 멀티셀렉트
-    sel_sr = st.sidebar.multiselect("시리즈 선택", available_series, default=available_series)
-else:
-    # 많은 수면 검색 가능한 입력 + 기본 상위 N 선택
-    search_series = st.sidebar.text_input("시리즈 검색 (부분문자 입력)")
-    top_n_default = 20
-    series_agg_all = f_df[f_df['brand'].isin(sel_br)].groupby('series').agg({'forecast':'sum'}).reset_index()
-    top_series = series_agg_all.sort_values('forecast', ascending=False).head(top_n_default)['series'].tolist()
-    if search_series:
-        filtered_series = [s for s in available_series if search_series.lower() in s.lower()]
-        sel_sr = st.sidebar.multiselect("검색 결과에서 선택", filtered_series, default=filtered_series[:top_n_default])
+# 탭별 필터을 사이드바 expander로 구성
+with st.sidebar.expander("메인 대시보드 필터", expanded=True):
+    st.write(f"시리즈 수: **{series_count}개**")
+    if series_count == 0:
+        st.info("선택된 브랜드에 시리즈 데이터가 없습니다.")
+        sel_sr_main = []
+    elif series_count <= 30:
+        sel_sr_main = st.multiselect("시리즈 선택 (메인)", available_series, default=available_series)
     else:
-        sel_sr = st.sidebar.multiselect("시리즈 선택 (기본 상위 20)", available_series, default=top_series)
-
-st.sidebar.markdown("---")
-# 정렬 지표 (한글)
-sort_metric = st.sidebar.selectbox("정렬 지표", 
+        search_series_main = st.text_input("시리즈 검색 (메인)")
+        top_n_default_main = 20
+        series_agg_all = f_df[f_df['brand'].isin(sel_br)].groupby('series').agg({'forecast':'sum'}).reset_index()
+        top_series_main = series_agg_all.sort_values('forecast', ascending=False).head(top_n_default_main)['series'].tolist()
+        if search_series_main:
+            filtered_series_main = [s for s in available_series if search_series_main.lower() in s.lower()]
+            sel_sr_main = st.multiselect("검색 결과에서 선택 (메인)", filtered_series_main, default=filtered_series_main[:top_n_default_main])
+        else:
+            sel_sr_main = st.multiselect("시리즈 선택 (메인 기본 상위)", available_series, default=top_series_main)
+    sort_metric_main = st.selectbox("정렬 지표 (메인)", 
                                    ["차이량(|실-예측|) 큰 순", "차이량(실-예측) 큰 순", "실수주량 큰 순", "예측수요 큰 순", "달성률 큰 순"])
+    top_n_main = st.slider("Top N 표시 수 (메인)", 5, 50, 10)
+    search_term_main = st.text_input("검색 (메인: 단품코드/명칭)")
 
-top_n = st.sidebar.slider("Top N 표시 수", 5, 50, 10)
+with st.sidebar.expander("시계열 추이 필터", expanded=False):
+    ts_mode = st.radio("표시 기준 (시계열)", ("브랜드별", "시리즈별"))
+    ts_choices = sorted(mg_all['brand'].unique()) if ts_mode == "브랜드별" else sorted(mg_all['series'].unique())
+    ts_target = st.multiselect("표시할 항목 선택 (시계열)", ts_choices, default=None)
 
-search_term = st.sidebar.text_input("검색 (단품코드/명칭)")
+with st.sidebar.expander("시리즈 상세 필터", expanded=False):
+    sel_brand_series = st.selectbox("브랜드 선택 (시리즈 상세)", ["전체"] + all_brands, index=0)
+    sel_supply_series = st.selectbox("공급단 선택 (시리즈 상세)", supply_options, index=0)
+    top_n_series = st.slider("표시할 시리즈 수 (Top N, 시리즈 상세)", 5, 50, 20)
+
+with st.sidebar.expander("전체 데이터 필터", expanded=False):
+    sel_supply_all = st.selectbox("공급단 선택 (전체 데이터)", supply_options, index=0)
+
+with st.sidebar.expander("수주대비 실적 분석 필터", expanded=False):
+    perf_threshold_low = st.number_input("과소예측 기준(달성률 미만)", value=90, min_value=1, max_value=100)
+    perf_threshold_high = st.number_input("과대예측 기준(달성률 초과)", value=110, min_value=100, max_value=1000)
 
 # -----------------------
 # 탭 구성: 메인 탭을 맨 앞에 배치
@@ -151,13 +164,13 @@ tab_main, tab_ts, tab_series, tab_all, tab_perf = st.tabs([
 # -----------------------
 with tab_main:
     st.header("메인 대시보드")
-    st.write("선택된 브랜드/시리즈에 대한 요약, 차트, 테이블을 제공합니다.")
+    st.write("사이드바의 '메인 대시보드 필터'로 제어됩니다.")
 
     # 필터 적용 (메인 탭은 사이드바에서 선택된 시리즈 사용)
-    if not sel_sr:
-        st.warning("사이드바에서 시리즈를 선택하세요.")
+    if not sel_sr_main:
+        st.warning("사이드바의 '메인 대시보드 필터'에서 시리즈를 선택하세요.")
     else:
-        f_sel = f_df[(f_df["ym"] == sel_ym) & (f_df["brand"].isin(sel_br)) & (f_df["series"].isin(sel_sr))].copy()
+        f_sel = f_df[(f_df["ym"] == sel_ym) & (f_df["brand"].isin(sel_br)) & (f_df["series"].isin(sel_sr_main))].copy()
         a_sel = a_df[a_df["ym"] == sel_ym].copy()
         mg_main = pd.merge(f_sel, a_sel[["combo", "actual"]], on="combo", how="left").fillna(0)
 
@@ -173,11 +186,11 @@ with tab_main:
             "예측수요 큰 순": ("forecast", False),
             "달성률 큰 순": ("달성률(%)", False)
         }
-        mg_main = mg_main.sort_values(by=sort_map[sort_metric][0], ascending=sort_map[sort_metric][1])
+        mg_main = mg_main.sort_values(by=sort_map[sort_metric_main][0], ascending=sort_map[sort_metric_main][1])
 
         # 검색 필터
-        if search_term:
-            mg_main = mg_main[mg_main['combo'].str.contains(search_term, case=False) | mg_main['name'].str.contains(search_term, case=False)]
+        if search_term_main:
+            mg_main = mg_main[mg_main['combo'].str.contains(search_term_main, case=False) | mg_main['name'].str.contains(search_term_main, case=False)]
 
         # 요약 카드
         t_f = mg_main['forecast'].sum()
@@ -198,10 +211,10 @@ with tab_main:
         # 차트
         st.write("")
         c1, c2 = st.columns(2)
-        chart_data = mg_main.head(top_n)
+        chart_data = mg_main.head(top_n_main)
 
         with c1:
-            st.subheader(f"상위 Top {top_n} 수량 분석")
+            st.subheader(f"상위 Top {top_n_main} 수량 분석")
             fig1 = go.Figure()
             fig1.add_trace(go.Bar(x=chart_data['series'], y=chart_data['forecast'], name='예측수요', marker_color='#3b82f6'))
             fig1.add_trace(go.Bar(x=chart_data['series'], y=chart_data['actual'], name='실수주량', marker_color='#fb7185'))
@@ -210,14 +223,14 @@ with tab_main:
             st.plotly_chart(fig1, use_container_width=True)
 
         with c2:
-            st.subheader(f"달성률 현황 (Top {top_n})")
+            st.subheader(f"달성률 현황 (Top {top_n_main})")
             fig2 = go.Figure()
             fig2.add_trace(go.Bar(x=chart_data['series'], y=chart_data['달성률(%)'], name='달성률', marker_color='#0ea5e9'))
             fig2.add_hline(y=100, line_dash="dash", line_color="red", annotation_text="목표(100%)")
             fig2.update_layout(template='plotly_white', height=420, margin=dict(l=20, r=20, t=20, b=20))
             st.plotly_chart(fig2, use_container_width=True)
 
-        # 데이터 테이블 (supply에 NaN이 없도록 이미 '기타'로 채워짐)
+        # 데이터 테이블
         st.dataframe(mg_main.drop(columns=['오차량']), use_container_width=True, hide_index=True)
 
 # -----------------------
@@ -225,15 +238,7 @@ with tab_main:
 # -----------------------
 with tab_ts:
     st.header("시계열 추이")
-    st.write("월별 예측과 실적의 추이를 브랜드/시리즈별로 비교합니다.")
-
-    ts_mode = st.radio("표시 기준", ("브랜드별", "시리즈별"), horizontal=True)
-    if ts_mode == "브랜드별":
-        choices = sorted(mg_all['brand'].unique())
-    else:
-        choices = sorted(mg_all['series'].unique())
-
-    ts_target = st.multiselect("표시할 항목 선택 (없으면 상위 4개)", choices, default=None)
+    st.write("사이드바의 '시계열 추이 필터'로 제어됩니다.")
 
     mg_time = mg_all.copy()
     try:
@@ -267,27 +272,19 @@ with tab_ts:
 # -----------------------
 with tab_series:
     st.header("시리즈 상세")
-    st.write("브랜드와 공급단(또는 전체)을 선택하여 시리즈별 예측량을 확인합니다.")
-
-    sel_brand_series = st.selectbox("브랜드 선택 (시리즈 상세)", ["전체"] + all_brands, index=0)
-    supply_options = ["전체"]
-    # supply 컬럼에 NaN이 없도록 load_data에서 '기타'로 채웠으므로 dropna 불필요
-    if 'supply' in f_df.columns:
-        supply_options += sorted(f_df['supply'].dropna().unique().tolist())
-    sel_supply = st.selectbox("공급단 선택", supply_options, index=0)
+    st.write("사이드바의 '시리즈 상세 필터'로 제어됩니다.")
 
     df_series = f_df.copy()
     if sel_brand_series != "전체":
         df_series = df_series[df_series['brand'] == sel_brand_series]
-    if sel_supply != "전체":
-        df_series = df_series[df_series['supply'] == sel_supply]
+    if sel_supply_series != "전체":
+        # supply 선택이 '전체'가 아닌 경우, NaN(결측)은 이미 제외된 옵션만 존재하므로 필터 적용
+        df_series = df_series[df_series['supply'] == sel_supply_series]
 
     series_agg = df_series.groupby('series').agg({'forecast':'sum'}).reset_index().sort_values('forecast', ascending=False)
     if series_agg.empty:
         st.info("선택한 조건에 해당하는 시리즈 데이터가 없습니다.")
     else:
-        max_n = max(5, min(50, len(series_agg)))
-        top_n_series = st.slider("표시할 시리즈 수 (Top N)", 5, max_n, min(20, max_n))
         plot_df = series_agg.head(top_n_series).sort_values('forecast')
 
         fig_s = go.Figure(go.Bar(x=plot_df['forecast'], y=plot_df['series'], orientation='h', marker_color='#3b82f6'))
@@ -304,13 +301,17 @@ with tab_series:
 # -----------------------
 with tab_all:
     st.header("전체 데이터")
-    st.write("공급단별 예측 비중과 브랜드 × 공급단별 예측량을 확인합니다.")
+    st.write("사이드바의 '전체 데이터 필터'로 제어됩니다.")
 
     if 'supply' not in f_df.columns:
         st.info("데이터에 'supply' 컬럼이 없어 공급단별 분석을 표시할 수 없습니다.")
     else:
-        # '기타' 포함된 상태이므로 NaN 표시 없음
-        supply_agg = f_df.groupby('supply').agg({'forecast':'sum'}).reset_index()
+        df_all = f_df.copy()
+        if sel_supply_all != "전체":
+            df_all = df_all[df_all['supply'] == sel_supply_all]
+
+        # NaN(결측) supply는 그룹화에서 제외되어 '기타'가 보이지 않음
+        supply_agg = df_all.dropna(subset=['supply']).groupby('supply').agg({'forecast':'sum'}).reset_index()
         total_forecast = supply_agg['forecast'].sum()
         if supply_agg.empty or total_forecast == 0:
             st.info("공급단별 집계 데이터가 없습니다.")
@@ -320,7 +321,7 @@ with tab_all:
             fig_pie.update_layout(title=f"공급단별 예측 비중 (총합: {int(total_forecast):,})", height=420, template='plotly_white')
             st.plotly_chart(fig_pie, use_container_width=True)
 
-            pivot = f_df.pivot_table(index='brand', columns='supply', values='forecast', aggfunc='sum', fill_value=0)
+            pivot = df_all.dropna(subset=['supply']).pivot_table(index='brand', columns='supply', values='forecast', aggfunc='sum', fill_value=0)
             pivot['총합'] = pivot.sum(axis=1)
             pivot = pivot.sort_values('총합', ascending=False).drop(columns=['총합'])
             st.subheader("브랜드 × 공급단 예측량")
@@ -331,7 +332,7 @@ with tab_all:
 # -----------------------
 with tab_perf:
     st.header("수주대비 실적 분석")
-    st.write("선택한 기준월과 브랜드에 대해 간단히 실적(실수주) 대비 예측의 성과를 요약합니다.")
+    st.write("사이드바의 '수주대비 실적 분석 필터'로 제어됩니다.")
 
     mg_perf = mg_all[(mg_all['ym'] == sel_ym) & (mg_all['brand'].isin(sel_br))].copy()
     if mg_perf.empty:
@@ -357,21 +358,21 @@ with tab_perf:
         series_perf['달성률(%)'] = np.where(series_perf['forecast']>0, (series_perf['actual']/series_perf['forecast']*100).round(1), 0)
         series_perf['오차량'] = (series_perf['actual'] - series_perf['forecast']).abs()
 
-        under = series_perf[series_perf['달성률(%)'] < 90].sort_values('달성률(%)').head(5)
-        over = series_perf[series_perf['달성률(%)'] > 110].sort_values('달성률(%)', ascending=False).head(5)
+        under = series_perf[series_perf['달성률(%)'] < perf_threshold_low].sort_values('달성률(%)').head(5)
+        over = series_perf[series_perf['달성률(%)'] > perf_threshold_high].sort_values('달성률(%)', ascending=False).head(5)
         worst = series_perf.sort_values('오차량', ascending=False).head(5)
 
         st.write("")
         st.subheader("달성률 기준: 과소/과대 예측 (간단 리스트)")
         col_u, col_o = st.columns(2)
         with col_u:
-            st.markdown("**과소예측 (달성률 < 90%) — 실적이 예측보다 적음**")
+            st.markdown(f"**과소예측 (달성률 < {perf_threshold_low}%) — 실적이 예측보다 적음**")
             if under.empty:
                 st.write("해당 없음")
             else:
                 st.table(under[['series','forecast','actual','달성률(%)']].rename(columns={'series':'시리즈','forecast':'예측','actual':'실수주'}).astype({'예측':int,'실수주':int}))
         with col_o:
-            st.markdown("**과대예측 (달성률 > 110%) — 실적이 예측보다 많음**")
+            st.markdown(f"**과대예측 (달성률 > {perf_threshold_high}%) — 실적이 예측보다 많음**")
             if over.empty:
                 st.write("해당 없음")
             else:
@@ -388,7 +389,7 @@ with tab_perf:
         st.subheader("간단 권장 조치")
         st.markdown("""
         - **우선 점검**: 상위 오차 품목의 재고·프로모션·납기·채널별 판매 현황을 확인하세요.  
-        - **단기 보정**: 달성률이 80% 미만 또는 120% 초과인 시리즈는 단기 보정 대상으로 지정하세요.  
+        - **단기 보정**: 달성률이 임계값을 벗어난 시리즈는 단기 보정 대상으로 지정하세요.  
         - **모니터링**: 다음 예측 주기에는 상위 변동 시리즈에 대해 최근 3개월 추세를 반영하세요.
         """)
 
@@ -403,5 +404,5 @@ preview = preview[preview['ym'] == sel_ym]
 if preview.empty:
     st.info("선택한 조건에 해당하는 원본 데이터가 없습니다.")
 else:
-    # supply 컬럼은 load_data에서 '기타'로 채워졌으므로 NaN 표시 없음
+    # supply 컬럼의 결측값은 그대로 NaN으로 남아있으므로 화면에 '기타'가 표시되지 않음
     st.dataframe(preview.drop(columns=['오차량']), use_container_width=True, hide_index=True)
