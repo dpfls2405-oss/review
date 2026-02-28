@@ -1,9 +1,10 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import plotly.graph_objects as go
 import io
 
-# 1. 페이지 설정 및 밝은 테마 커스텀 스타일링
+# 1. 페이지 설정 및 라이트 테마 고정
 st.set_page_config(page_title="수요예측 분석 리포트", page_icon="📊", layout="wide")
 
 st.markdown("""
@@ -11,67 +12,62 @@ st.markdown("""
     .stApp { background-color: #FFFFFF !important; color: #1E293B !important; }
     [data-testid="stSidebar"] { background-color: #F8FAFC !important; border-right: 1px solid #E2E8F0; }
     .analysis-box { 
-        background-color: #F1F5F9; border-radius: 12px; padding: 25px; 
-        border-left: 6px solid #2563EB; margin-bottom: 30px; line-height: 1.8;
+        background-color: #F8FAFC; border-radius: 12px; padding: 25px; 
+        border: 1px solid #E2E8F0; border-left: 6px solid #2563EB; margin-bottom: 30px; line-height: 1.8;
     }
-    .section-header { 
-        font-size: 19px; font-weight: bold; margin: 25px 0 12px 0; 
-        color: #0F172A; border-bottom: 2px solid #E2E8F0; padding-bottom: 8px; 
+    .item-card { 
+        background: white; padding: 15px 20px; border-radius: 10px; 
+        margin-top: 12px; border: 1px solid #E2E8F0; box-shadow: 0 2px 4px rgba(0,0,0,0.03);
     }
-    .item-card { background: white; padding: 10px 15px; border-radius: 8px; margin-top: 10px; border: 1px solid #E2E8F0; }
     code { color: #2563EB; background: #EFF6FF; padding: 2px 5px; border-radius: 4px; font-weight: bold; }
+    .section-header { font-size: 19px; font-weight: bold; color: #0F172A; margin: 25px 0 10px 0; border-bottom: 2px solid #F1F5F9; padding-bottom: 5px; }
     </style>
     """, unsafe_allow_html=True)
 
-# 2. 데이터 로드 및 초정밀 전처리 (시리즈 오류 해결의 핵심)
+# 2. 데이터 로드 및 초정밀 전처리 (시리즈 오류 해결)
 @st.cache_data
 def load_data():
     f = pd.read_csv("forecast_data.csv")
     a = pd.read_csv("actual_data.csv")
     
-    # [수정] 공급단 NaN 행 제거 및 문자열 정제
+    # 공급단 NaN 행 제외
     f = f.dropna(subset=['supply'])
     
     def clean_strings(df):
-        # 모든 오브젝트 컬럼에 대해 공백 제거 및 결측치 처리
-        cols = df.select_dtypes(include=['object']).columns
-        for col in cols:
-            df[col] = df[col].fillna("미분류").astype(str).str.strip()
+        for col in df.select_dtypes(include=['object']).columns:
+            # NaN 처리 및 앞뒤 공백 제거로 시리즈 중복 방지
+            df[col] = df[col].fillna("").astype(str).str.strip()
         return df
 
-    f = clean_strings(f)
-    a = clean_strings(a)
-    
-    # [시리즈 오류 방지] 빈 값이나 이상한 값 보정
-    f = f[f['series'] != ""]
+    f, a = clean_strings(f), clean_strings(a)
+    # 유효하지 않은 시리즈 명칭 제거
+    f = f[~f['series'].isin(["", "nan", "미분류"])]
     return f, a
 
 f_df, a_df = load_data()
 
-# 3. 사이드바 필터 설정
+# 3. 사이드바 필터 (동적 연동)
 st.sidebar.title("🔍 필터 설정")
 sel_ym = st.sidebar.selectbox("📅 기준 년월", sorted(f_df["ym"].unique(), reverse=True))
 
-# 브랜드/시리즈 연동 필터 (시리즈 중복 및 오류 해결)
+# 브랜드 필터
 all_brands = sorted(f_df["brand"].unique().tolist())
 sel_br = st.sidebar.multiselect("🏷️ 브랜드", all_brands, default=all_brands)
 
-# 선택된 브랜드 내에 존재하는 시리즈만 추출 (중복 제거)
-filtered_series_list = sorted(f_df[f_df["brand"].isin(sel_br)]["series"].unique().tolist())
-sel_sr = st.sidebar.multiselect("🪑 시리즈", filtered_series_list, default=filtered_series_list)
+# 시리즈 필터 (선택된 브랜드 내의 시리즈만 중복 없이 추출)
+current_brands_f = f_df[f_df["brand"].isin(sel_br)]
+all_series = sorted(current_brands_f["series"].unique().tolist())
+sel_sr = st.sidebar.multiselect("🪑 시리즈 선택", all_series, default=all_series)
 
+# 공급단 필터
 all_supplies = sorted(f_df["supply"].unique().tolist())
-sel_sp = st.sidebar.multiselect("🏭 공급단", all_supplies, default=all_supplies)
+sel_sp = st.sidebar.multiselect("🏭 공급단 선택", all_supplies, default=all_supplies)
 
 sort_metric = st.sidebar.selectbox("🔢 정렬 기준", ["예측량 높은순", "실적량 높은순", "달성률 높은순"])
-search_query = st.sidebar.text_input("📝 품목명 검색", "")
 
 # 4. 데이터 필터링 및 병합
 f_sel = f_df[(f_df["ym"] == sel_ym) & (f_df["brand"].isin(sel_br)) & 
              (f_df["series"].isin(sel_sr)) & (f_df["supply"].isin(sel_sp))].copy()
-
-if search_query:
-    f_sel = f_sel[f_sel["name"].str.contains(search_query, case=False)]
 
 a_sel = a_df[a_df["ym"] == sel_ym].copy()
 mg = pd.merge(f_sel, a_sel[["combo", "actual"]], on="combo", how="left")
@@ -83,8 +79,8 @@ mg["달성률(%)"] = np.where(mg["forecast"] > 0, (mg["actual"] / mg["forecast"]
 sort_map = {"예측량 높은순": ("forecast", False), "실적량 높은순": ("actual", False), "달성률 높은순": ("달성률(%)", False)}
 mg = mg.sort_values(by=sort_map[sort_metric][0], ascending=sort_map[sort_metric][1])
 
-# 5. 메인 화면 - [상세 요약 분석 리포트]
-st.title(f"📊 {sel_ym} 수요 분석 리포트")
+# 5. 메인 화면 - [분석 리포트 섹션]
+st.title(f"📊 {sel_ym} 수요 분석 보고서")
 
 if not mg.empty:
     total_f = mg['forecast'].sum()
@@ -93,47 +89,51 @@ if not mg.empty:
     
     # 주요 품목 TOP 5 리스트 생성
     top_5 = mg.head(5)
-    item_analysis = ""
-    
+    item_analysis_html = ""
     for i, (_, row) in enumerate(top_5.iterrows(), 1):
-        # 단품코드와 색상 분리 로직 (하이픈 기준)
         cb = str(row['combo'])
         code = cb.split('-')[0] if '-' in cb else cb
         color = cb.split('-')[1] if '-' in cb else "기본"
-        
-        item_analysis += f"""
+        item_analysis_html += f"""
         <div class="item-card">
-            <strong>{i}. {row['name']}</strong> ({row['series']})<br>
+            <strong>{i}. {row['name']}</strong> (시리즈: {row['series']})<br>
             • <strong>식별 정보:</strong> 단품코드 <code>{code}</code> | 색상 <code>{color}</code><br>
-            • <strong>수치 분석:</strong> 예측 <strong>{int(row['forecast']):,}</strong> 대비 실적 <strong>{int(row['actual']):,}</strong> 달성 (달성률 <strong>{row['달성률(%)']:.1f}%</strong>)
-        </div>
-        """
+            • <strong>수치 분석:</strong> 예측 <strong>{int(row['forecast']):,}</strong> 대비 실적 <strong>{int(row['actual']):,}</strong>으로 
+              달성률 <strong>{row['달성률(%)']:.1f}%</strong>를 기록 중입니다.
+        </div>"""
 
     st.markdown(f"""
     <div class="analysis-box">
         <strong>💡 필터 결과 요약 분석</strong><br>
-        1. <strong>전체 현황:</strong> 총 예측량은 <strong>{int(total_f):,}</strong>건이며, 실제 수주량은 <strong>{int(total_a):,}</strong>건입니다.<br>
-        2. <strong>평균 달성률:</strong> 분석 대상 품목의 평균 달성률은 <strong>{avg_rate:.1f}%</strong>입니다. 
-        {' (예측 대비 실적이 목표치를 달성 중입니다)' if avg_rate >= 90 else ' (예측 대비 실적이 저조하여 수급 확인이 필요합니다)'}<br><br>
-        <strong>🔍 주요 관리 품목 (TOP 5 상세)</strong><br>
-        {item_analysis}
+        1. <strong>전체 현황:</strong> 총 예측량은 <strong>{int(total_f):,}</strong>이며, 실제 수주량은 <strong>{int(total_a):,}</strong>입니다.<br>
+        2. <strong>평균 달성률:</strong> 분석 품목군 평균 달성률은 <strong>{avg_rate:.1f}%</strong>입니다. {'(양호)' if avg_rate >= 90 else '(주의 요망)'}<br><br>
+        <strong>🔍 주요 품목 상세 분석 (TOP 5)</strong><br>
+        {item_analysis_html}
     </div>
     """, unsafe_allow_html=True)
 
-# 6. KPI 지표 및 데이터 표
-c1, c2, c3 = st.columns(3)
-c1.metric("총 예측량", f"{int(mg['forecast'].sum()):,}")
-c2.metric("총 실적량", f"{int(mg['actual'].sum()):,}")
-c3.metric("평균 달성률", f"{mg['달성률(%)'].mean():.1f}%")
+# 6. 시리즈별 시각화 분석 (차이량 및 달성률)
+st.markdown('<div class="section-header">📈 시리즈별 예측/실적 차이 및 달성률</div>', unsafe_allow_html=True)
+series_agg = mg.groupby('series').agg({
+    'forecast': 'sum', 'actual': 'sum', '차이': 'sum'
+}).reset_index()
+series_agg['달성률(%)'] = (series_agg['actual'] / series_agg['forecast'] * 100).round(1)
 
-st.markdown('<div class="section-header">📋 상세 내역 데이터</div>', unsafe_allow_html=True)
+fig = go.Figure()
+fig.add_trace(go.Bar(x=series_agg['series'], y=series_agg['차이'], name='예측 대비 차이량', marker_color='#fb7185'))
+fig.add_trace(go.Scatter(x=series_agg['series'], y=series_agg['달성률(%)'], name='달성률(%)', yaxis='y2', line=dict(color='#2563eb', width=3)))
+
+fig.update_layout(
+    template='plotly_white',
+    yaxis=dict(title="차이량 (실적-예측)"),
+    yaxis2=dict(title="달성률 (%)", overlaying='y', side='right', range=[0, max(series_agg['달성률(%)'].max(), 120)]),
+    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+)
+st.plotly_chart(fig, use_container_width=True)
+
+# 7. 상세 데이터 표
+st.markdown('<div class="section-header">📋 상세 데이터 현황</div>', unsafe_allow_html=True)
 display_df = mg.rename(columns={
     "brand": "브랜드", "series": "시리즈", "combo": "단품코드", "name": "품목명", "forecast": "예측", "actual": "실적"
 })[["브랜드", "시리즈", "단품코드", "품목명", "예측", "실적", "차이", "달성률(%)"]]
-
 st.dataframe(display_df, use_container_width=True, hide_index=True)
-
-# 7. 다운로드 기능
-buf = io.BytesIO()
-mg.to_csv(buf, index=False, encoding="utf-8-sig")
-st.download_button(f"⬇️ {sel_ym} 분석 결과 다운로드", buf.getvalue(), f"analysis_{sel_ym}.csv", "text/csv")
