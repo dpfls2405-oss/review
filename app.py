@@ -136,4 +136,4 @@ display_df = mg.rename(columns={
     "brand": "브랜드", "series": "시리즈", "combo": "단품코드", "name": "품목명", "forecast": "예측", "actual": "실적"
 })[["브랜드", "시리즈", "단품코드", "품목명", "예측", "실적", "차이", "달성률(%)"]]
 
-st.dataframe(display_df, use_container_width=True, hide
+st.dataframe(display_df, use_container_width=True, hide_index=True)
