@@ -713,6 +713,7 @@ with tab2:
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #  탭3: 시리즈 분석
+#  ★ 좌: 예측/실수주/차이량 3-bar  |  우: 달성률 bar + % 텍스트
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 with tab3:
     df_sr = apply_filters(mg_all, ym=sel_ym, brands=sel_brands, supply=sel_supply)
@@ -720,139 +721,232 @@ with tab3:
     if df_sr.empty:
         st.warning("선택한 조건에 해당하는 데이터가 없습니다.")
     else:
-        # 인라인 필터 (Top N 슬라이더만)
-        st.markdown('<div class="section-card" style="padding:16px 22px 12px 22px">', unsafe_allow_html=True)
-        sf1, sf2 = st.columns([1, 3])
+        # ── 인라인 필터 바 (Top N + 정렬 기준)
+        st.markdown('<div class="section-card" style="padding:14px 22px 12px 22px">', unsafe_allow_html=True)
+        sf1, sf2, sf3 = st.columns([1, 1, 2])
         with sf1:
-            st.markdown("**표시할 시리즈 수**")
-            top_n = st.slider(" ", 5, 30, 15, label_visibility="collapsed")
+            st.markdown("**Top N**")
+            top_n = st.slider(" ", 5, 30, 20, label_visibility="collapsed", key="sr_topn")
         with sf2:
+            st.markdown("**정렬 기준**")
+            sr_sort = st.selectbox(" ", [
+                "차이량(실-예측) 큰 순", "예측수요 큰 순", "실수주 큰 순", "달성률 높은 순", "달성률 낮은 순"
+            ], label_visibility="collapsed", key="sr_sort")
+        with sf3:
             st.markdown(
-                f"<div style='padding-top:12px; font-size:14px; color:#64748B'>"
-                f"예측 수요 기준 상위 <b style='color:#1D4ED8; font-size:18px'>{top_n}</b>개 시리즈 표시</div>",
+                f"<div style='padding-top:28px; font-size:14px; color:#64748B'>"
+                f"상위 <b style='color:#1D4ED8; font-size:18px'>{top_n}</b>개 시리즈 표시 &nbsp;|&nbsp; "
+                f"정렬: <b style='color:#1D4ED8'>{sr_sort}</b></div>",
                 unsafe_allow_html=True
             )
         st.markdown('</div>', unsafe_allow_html=True)
 
+        # ── 데이터 집계
         sr_agg = df_sr.groupby("series").agg(
-            forecast=("forecast","sum"), actual=("actual","sum")
+            forecast=("forecast", "sum"), actual=("actual", "sum")
         ).reset_index()
+        sr_agg["차이량"] = sr_agg["actual"] - sr_agg["forecast"]   # 실-예측 (부호 있음)
+        sr_agg["오차량"] = sr_agg["차이량"].abs()
         sr_agg["달성률(%)"] = np.where(
             sr_agg["forecast"] > 0,
             (sr_agg["actual"] / sr_agg["forecast"] * 100).round(1), 0
         )
-        sr_agg["오차량"] = (sr_agg["actual"] - sr_agg["forecast"]).abs()
-        sr_top = sr_agg.sort_values("forecast", ascending=False).head(top_n)
 
-        col_l, col_r = st.columns([3, 2])
+        # 정렬 적용
+        sr_sort_map = {
+            "차이량(실-예측) 큰 순": ("오차량",    False),
+            "예측수요 큰 순":         ("forecast",  False),
+            "실수주 큰 순":           ("actual",    False),
+            "달성률 높은 순":         ("달성률(%)", False),
+            "달성률 낮은 순":         ("달성률(%)", True),
+        }
+        ss_col, ss_asc = sr_sort_map[sr_sort]
+        sr_top = sr_agg.sort_values(ss_col, ascending=ss_asc).head(top_n)
 
+        # 차트용: y축 순서를 예측수요 오름차순 (가장 큰 값이 위로)
+        sr_plot = sr_top.sort_values("forecast", ascending=True)
+        chart_h = max(420, top_n * 32)
+
+        # ── 좌우 차트 나란히
+        col_l, col_r = st.columns(2)
+
+        # ━ 왼쪽: 예측수요 / 실수주 / 차이량 3-bar
         with col_l:
             st.markdown('<div class="section-card">', unsafe_allow_html=True)
-            st.markdown('<div class="section-title">시리즈별 예측 vs 실수주</div>', unsafe_allow_html=True)
-            sr_plot = sr_top.sort_values("forecast")
-            fig_sr = go.Figure()
-            fig_sr.add_trace(go.Bar(
-                y=sr_plot["series"], x=sr_plot["forecast"], name="예측 수요",
-                orientation="h", marker_color="#93C5FD",
-                text=sr_plot["forecast"].apply(fmt_int),
-                textposition="outside", textfont=dict(size=12)
-            ))
-            fig_sr.add_trace(go.Bar(
-                y=sr_plot["series"], x=sr_plot["actual"], name="실 수주",
-                orientation="h", marker_color="#34D399",
-                text=sr_plot["actual"].apply(fmt_int),
-                textposition="outside", textfont=dict(size=12)
-            ))
-            fig_sr.update_layout(
-                barmode="group", template="plotly_white",
-                height=max(340, top_n * 30),
-                margin=dict(l=0, r=70, t=10, b=0),
-                font=dict(size=14),
-                xaxis=dict(showgrid=True, gridcolor="#F3F4F6", tickfont=dict(size=13)),
-                yaxis=dict(tickfont=dict(size=13)),
-                legend=dict(orientation="h", yanchor="bottom", y=1.02, font=dict(size=13))
+            st.markdown(
+                f'<div class="section-title">예측수요 / 실수주 / 차이량 (Top {top_n})</div>',
+                unsafe_allow_html=True
             )
-            st.plotly_chart(fig_sr, use_container_width=True)
+            fig_3bar = go.Figure()
+            fig_3bar.add_trace(go.Bar(
+                y=sr_plot["series"], x=sr_plot["forecast"],
+                name="예측수요", orientation="h",
+                marker_color="#5B8DEF",
+                text=sr_plot["forecast"].apply(fmt_int),
+                textposition="outside", textfont=dict(size=11, color="#374151")
+            ))
+            fig_3bar.add_trace(go.Bar(
+                y=sr_plot["series"], x=sr_plot["actual"],
+                name="실수주", orientation="h",
+                marker_color="#34D399",
+                text=sr_plot["actual"].apply(fmt_int),
+                textposition="outside", textfont=dict(size=11, color="#374151")
+            ))
+            # 차이량: 양수는 초과(하늘), 음수는 미달(분홍)
+            diff_colors = [
+                "#60A5FA" if v >= 0 else "#F87171"
+                for v in sr_plot["차이량"]
+            ]
+            fig_3bar.add_trace(go.Bar(
+                y=sr_plot["series"], x=sr_plot["차이량"],
+                name="차이량(실-예측)", orientation="h",
+                marker_color=diff_colors,
+                text=[
+                    f"+{fmt_int(v)}" if v >= 0 else fmt_int(v)
+                    for v in sr_plot["차이량"]
+                ],
+                textposition="outside", textfont=dict(size=11, color="#374151")
+            ))
+            fig_3bar.update_layout(
+                barmode="group",
+                template="plotly_white",
+                height=chart_h,
+                margin=dict(l=0, r=80, t=10, b=0),
+                font=dict(size=13),
+                xaxis=dict(
+                    showgrid=True, gridcolor="#F3F4F6",
+                    zeroline=True, zerolinecolor="#CBD5E1", zerolinewidth=1.5,
+                    tickfont=dict(size=12)
+                ),
+                yaxis=dict(tickfont=dict(size=13, color="#1F2937")),
+                legend=dict(
+                    orientation="h", yanchor="bottom", y=1.01,
+                    font=dict(size=12), bgcolor="rgba(0,0,0,0)"
+                ),
+                hoverlabel=dict(font_size=13)
+            )
+            st.plotly_chart(fig_3bar, use_container_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
 
+        # ━ 오른쪽: 달성률 bar + 퍼센트 텍스트
         with col_r:
             st.markdown('<div class="section-card">', unsafe_allow_html=True)
-            st.markdown('<div class="section-title">달성률 구간 분포</div>', unsafe_allow_html=True)
-            bins   = [0, 70, 90, 110, 130, 9999]
-            labels = ["70% 미만","70~90%","90~110%","110~130%","130% 초과"]
-            sr_agg["구간"] = pd.cut(sr_agg["달성률(%)"], bins=bins, labels=labels, right=False)
-            bin_cnt = (
-                sr_agg["구간"].value_counts()
-                .reindex(labels, fill_value=0)
-                .reset_index()
+            st.markdown(
+                f'<div class="section-title">달성률 (Top {top_n})</div>',
+                unsafe_allow_html=True
             )
-            bin_cnt.columns = ["구간","건수"]
-            bc = ["#EF4444","#F87171","#22C55E","#FBBF24","#F59E0B"]
-            fig_bin = go.Figure(go.Bar(
-                x=bin_cnt["구간"], y=bin_cnt["건수"],
-                marker_color=bc,
-                text=bin_cnt["건수"], textposition="outside",
-                textfont=dict(size=14)
-            ))
-            fig_bin.update_layout(
-                template="plotly_white", height=230,
-                margin=dict(l=0, r=0, t=10, b=0),
-                font=dict(size=13),
-                yaxis=dict(showgrid=True, gridcolor="#F3F4F6", tickfont=dict(size=13)),
-                xaxis=dict(tickfont=dict(size=12))
-            )
-            st.plotly_chart(fig_bin, use_container_width=True)
+            # 달성률에 따른 색상: 초과(초록) / 근접(노랑) / 미달(빨강)
+            rate_colors = []
+            for v in sr_plot["달성률(%)"]:
+                if v >= 100:
+                    rate_colors.append("#34D399")   # 초과 — 초록
+                elif v >= 90:
+                    rate_colors.append("#FBBF24")   # 90~100% — 노랑
+                else:
+                    rate_colors.append("#F87171")   # 미달 — 빨강
 
-            st.markdown('<div class="section-title" style="margin-top:8px">오차량 vs 달성률</div>',
-                        unsafe_allow_html=True)
-            fig_sc = go.Figure(go.Scatter(
-                x=sr_top["오차량"], y=sr_top["달성률(%)"],
-                mode="markers+text",
-                text=sr_top["series"], textposition="top center",
-                textfont=dict(size=12),
-                marker=dict(
-                    size=13, color=sr_top["달성률(%)"],
-                    colorscale="RdYlGn", cmin=70, cmax=130,
-                    showscale=True,
-                    colorbar=dict(thickness=10, len=0.7, tickfont=dict(size=12))
-                )
+            fig_rate = go.Figure()
+            fig_rate.add_trace(go.Bar(
+                y=sr_plot["series"],
+                x=sr_plot["달성률(%)"],
+                orientation="h",
+                marker_color=rate_colors,
+                text=[f"{v:.1f}%" for v in sr_plot["달성률(%)"]],
+                textposition="outside",
+                textfont=dict(size=12, color="#1F2937"),
+                hovertemplate="%{y}<br>달성률: %{x:.1f}%<extra></extra>"
             ))
-            fig_sc.add_hline(y=100, line_dash="dot", line_color="#94A3B8")
-            fig_sc.update_layout(
-                template="plotly_white", height=240,
-                margin=dict(l=0, r=0, t=10, b=0),
-                font=dict(size=13),
-                xaxis=dict(title="오차량", tickfont=dict(size=12),
-                           showgrid=True, gridcolor="#F3F4F6"),
-                yaxis=dict(title="달성률 (%)", tickfont=dict(size=12),
-                           showgrid=True, gridcolor="#F3F4F6")
+            # 100% 기준선
+            fig_rate.add_vline(
+                x=100,
+                line_dash="dash", line_color="#94A3B8", line_width=1.5,
+                annotation_text="100%",
+                annotation_position="top",
+                annotation_font=dict(size=12, color="#64748B")
             )
-            st.plotly_chart(fig_sc, use_container_width=True)
+            x_max = max(150, float(sr_plot["달성률(%)"].max()) + 30)
+            fig_rate.update_layout(
+                template="plotly_white",
+                height=chart_h,
+                margin=dict(l=0, r=70, t=10, b=0),
+                font=dict(size=13),
+                xaxis=dict(
+                    range=[0, x_max],
+                    showgrid=True, gridcolor="#F3F4F6",
+                    ticksuffix="%", tickfont=dict(size=12)
+                ),
+                yaxis=dict(tickfont=dict(size=13, color="#1F2937")),
+                hoverlabel=dict(font_size=13)
+            )
+            st.plotly_chart(fig_rate, use_container_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
 
-        # 하단 테이블
-        st.markdown('<div class="section-card">', unsafe_allow_html=True)
-        st.markdown('<div class="section-title">시리즈별 상세 수치</div>', unsafe_allow_html=True)
-        disp = sr_top.rename(columns={
-            "series":"시리즈", "forecast":"예측 수요", "actual":"실 수주",
-            "달성률(%)":"달성률(%)", "오차량":"오차량"
-        }).sort_values("예측 수요", ascending=False)
+        # ── 하단: 달성률 구간 요약 + 상세 테이블
+        sum_col, tbl_col = st.columns([1, 3])
 
-        def color_rate(v):
-            if isinstance(v, (int, float)):
-                if v >= 100: return "background:#D1FAE5; color:#065F46; font-weight:700"
-                if v >= 90:  return "background:#FEF9C3; color:#92400E; font-weight:700"
-                return "background:#FEE2E2; color:#991B1B; font-weight:700"
-            return ""
+        with sum_col:
+            st.markdown('<div class="section-card">', unsafe_allow_html=True)
+            st.markdown('<div class="section-title">달성률 구간 분포</div>', unsafe_allow_html=True)
+            bins   = [0, 70, 90, 100, 110, 9999]
+            blabels = ["70% 미만", "70~90%", "90~100%", "100~110%", "110% 초과"]
+            sr_agg["구간"] = pd.cut(sr_agg["달성률(%)"], bins=bins, labels=blabels, right=False)
+            bin_cnt = (
+                sr_agg["구간"].value_counts()
+                .reindex(blabels, fill_value=0)
+                .reset_index()
+            )
+            bin_cnt.columns = ["구간", "건수"]
+            bc_colors = ["#EF4444", "#F87171", "#FBBF24", "#34D399", "#059669"]
+            fig_bin = go.Figure(go.Bar(
+                x=bin_cnt["구간"], y=bin_cnt["건수"],
+                marker_color=bc_colors,
+                text=bin_cnt["건수"], textposition="outside",
+                textfont=dict(size=14, color="#1F2937")
+            ))
+            fig_bin.update_layout(
+                template="plotly_white", height=260,
+                margin=dict(l=0, r=0, t=10, b=0),
+                font=dict(size=13),
+                yaxis=dict(showgrid=True, gridcolor="#F3F4F6", tickfont=dict(size=12)),
+                xaxis=dict(tickfont=dict(size=11))
+            )
+            st.plotly_chart(fig_bin, use_container_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
 
-        styled = (
-            disp.style
-            .format({"예측 수요":"{:,.0f}","실 수주":"{:,.0f}",
-                     "오차량":"{:,.0f}","달성률(%)":"{:.1f}%"})
-            .applymap(color_rate, subset=["달성률(%)"])
-        )
-        st.dataframe(styled, use_container_width=True, height=320)
-        st.markdown('</div>', unsafe_allow_html=True)
+        with tbl_col:
+            st.markdown('<div class="section-card">', unsafe_allow_html=True)
+            st.markdown('<div class="section-title">시리즈별 상세 수치</div>', unsafe_allow_html=True)
+            disp = sr_top.rename(columns={
+                "series": "시리즈", "forecast": "예측수요", "actual": "실수주",
+                "차이량": "차이량(실-예측)", "오차량": "오차량(절대)", "달성률(%)": "달성률(%)"
+            })[["시리즈", "예측수요", "실수주", "차이량(실-예측)", "달성률(%)"]].copy()
+
+            def color_rate(v):
+                if isinstance(v, (int, float)):
+                    if v >= 100: return "background:#D1FAE5; color:#065F46; font-weight:700"
+                    if v >= 90:  return "background:#FEF9C3; color:#92400E; font-weight:700"
+                    return "background:#FEE2E2; color:#991B1B; font-weight:700"
+                return ""
+
+            def color_diff(v):
+                if isinstance(v, (int, float)):
+                    if v > 0:  return "color:#059669; font-weight:600"
+                    if v < 0:  return "color:#DC2626; font-weight:600"
+                return ""
+
+            styled = (
+                disp.style
+                .format({
+                    "예측수요": "{:,.0f}",
+                    "실수주":   "{:,.0f}",
+                    "차이량(실-예측)": "{:+,.0f}",
+                    "달성률(%)": "{:.1f}%"
+                })
+                .applymap(color_rate, subset=["달성률(%)"])
+                .applymap(color_diff, subset=["차이량(실-예측)"])
+            )
+            st.dataframe(styled, use_container_width=True, height=280)
+            st.markdown('</div>', unsafe_allow_html=True)
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
