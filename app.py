@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
+import google.generativeai as genai
 
 # ══════════════════════════════════════════════
 #  페이지 설정
@@ -534,7 +535,6 @@ with st.sidebar:
 
 {context_text}"""
 
-            import google.generativeai as genai
             try:
                 genai.configure(api_key=api_key)
                 model = genai.GenerativeModel(
