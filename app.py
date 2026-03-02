@@ -843,6 +843,11 @@ with tab1:
     with col_r:
         st.markdown('<div class="section-card"><div class="section-title">브랜드별 달성률</div>', unsafe_allow_html=True)
         bar_colors=["#22C55E" if v>=95 else "#F59E0B" if v>=80 else "#EF4444" for v in brand_agg["달성률"]]
+        st.markdown('''<div style="display:flex;gap:16px;margin-bottom:8px;font-size:12px;font-weight:600;">
+            <span style="display:flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;border-radius:3px;background:#22C55E;display:inline-block;"></span> 95% 이상 (목표 달성)</span>
+            <span style="display:flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;border-radius:3px;background:#F59E0B;display:inline-block;"></span> 80~95% (주의)</span>
+            <span style="display:flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;border-radius:3px;background:#EF4444;display:inline-block;"></span> 80% 미만 (미달)</span>
+        </div>''', unsafe_allow_html=True)
         fig_rate=go.Figure(go.Bar(x=brand_agg["달성률"],y=brand_agg["brand"],orientation="h",marker_color=bar_colors,text=[f"{v:.1f}%" for v in brand_agg["달성률"]],textposition="outside"))
         fig_rate.add_vline(x=100,line_dash="dot",line_color="#94A3B8",annotation_text="100%",annotation_font_size=13)
         fig_rate.update_layout(template="plotly_white",height=320,margin=dict(l=0,r=50,t=10,b=0),font=dict(size=14),xaxis=dict(range=[0,max(135,brand_agg["달성률"].max()+20)]),yaxis=dict(tickfont=dict(size=15,color="#0F172A")))
