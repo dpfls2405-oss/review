@@ -258,11 +258,7 @@ def load_data():
             _valid = {'시디즈(평택)', '베트남', '외주/상품', '<NA>'}
             df['supply'] = df['supply'].apply(lambda v: v if v in _valid else '<NA>')
 
-    # series가 NaN이면 '주문품'으로 처리
-    f['series'] = f['series'].astype(str).str.strip()
-    f['series'] = f['series'].replace({'nan': '주문품', 'NaN': '주문품', 'None': '주문품', '': '주문품'})
-
-    f = f.dropna(subset=['brand','combo'])
+    f = f.dropna(subset=['series','brand','combo'])
     f = f[~f['series'].astype(str).str.isnumeric()]
     f = f[f['series'].astype(str).str.len() >= 2]
     brand_values = set(f['brand'].dropna().astype(str).str.strip().unique())
