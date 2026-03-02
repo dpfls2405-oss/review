@@ -277,7 +277,25 @@ def load_data():
     return f, a
 
 f_df, a_df = load_data()
-mg_all = pd.merge(f_df, a_df[["ym","combo","actual"]], on=["ym","combo"], how="left")
+# forecast에만 있는 경우: actual=0, actual에만 있는 경우: forecast=0
+_a_cols = ["ym","combo","brand","series","name","supply","actual"]
+_a_for_merge = a_df[[c for c in _a_cols if c in a_df.columns]].copy()
+_a_for_merge = _a_for_merge.rename(columns={"brand":"brand_a","series":"series_a","name":"name_a","supply":"supply_a"})
+
+mg_all = pd.merge(f_df, _a_for_merge[["ym","combo","actual"]], on=["ym","combo"], how="outer")
+
+# outer join으로 생긴 누락 컬럼 채우기 (actual에만 있는 행)
+for _col in ["brand","series","name","supply","forecast"]:
+    if _col not in mg_all.columns:
+        mg_all[_col] = pd.NA
+# actual에만 있는 행의 brand/series/name/supply를 actual_data에서 채움
+_a_meta = a_df[["ym","combo","brand","series","name","supply"]].drop_duplicates(["ym","combo"])
+mg_all = mg_all.merge(_a_meta, on=["ym","combo"], how="left", suffixes=("","_from_a"))
+for _col in ["brand","series","name","supply"]:
+    _col_a = _col + "_from_a"
+    if _col_a in mg_all.columns:
+        mg_all[_col] = mg_all[_col].fillna(mg_all[_col_a])
+        mg_all.drop(columns=[_col_a], inplace=True)
 mg_all["actual"]   = pd.to_numeric(mg_all["actual"],  errors='coerce').fillna(0).astype(int)
 mg_all["forecast"] = pd.to_numeric(mg_all["forecast"],errors='coerce').fillna(0).astype(int)
 mg_all["차이"]      = mg_all["actual"] - mg_all["forecast"]
