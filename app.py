@@ -491,17 +491,50 @@ with st.sidebar:
 
     # 빠른 질문 버튼 (2열 그리드)
     quick_qs = [
-        ("📊","전체 달성률 분석"),
-        ("⚠️","오차 큰 시리즈"),
-        ("🔻","과소예측 원인"),
-        ("📈","다음달 전략"),
-        ("🏷️","브랜드 비교"),
-        ("💡","재고 우선순위"),
+        ("📊", "전체 달성률 분석"),
+        ("⚠️", "오차 큰 시리즈"),
+        ("🔻", "과소예측 원인"),
+        ("📈", "다음달 전략"),
+        ("🏷️", "브랜드 비교"),
+        ("💡", "재고 우선순위"),
     ]
+
+    # 버튼 CSS 개선
+    st.markdown("""
+    <style>
+    section[data-testid="stSidebar"] .stButton > button {
+        background: linear-gradient(135deg, #1E3A5F 0%, #1C2B3F 100%) !important;
+        border: 1.5px solid #4A7FA5 !important;
+        border-radius: 10px !important;
+        color: #E8F4FF !important;
+        font-size: 12px !important;
+        font-weight: 700 !important;
+        padding: 10px 6px !important;
+        line-height: 1.4 !important;
+        min-height: 52px !important;
+        width: 100% !important;
+        text-align: center !important;
+        transition: all 0.2s !important;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.3) !important;
+        white-space: pre-wrap !important;
+    }
+    section[data-testid="stSidebar"] .stButton > button:hover {
+        background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%) !important;
+        border-color: #60A5FA !important;
+        color: white !important;
+        box-shadow: 0 4px 12px rgba(37,99,235,0.4) !important;
+        transform: translateY(-1px) !important;
+    }
+    section[data-testid="stSidebar"] .stButton > button:active {
+        transform: translateY(0px) !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
     cols_q = st.columns(2)
     for i, (icon, label) in enumerate(quick_qs):
         with cols_q[i % 2]:
-            if st.button(f"{icon} {label}", key=f"sb_q_{i}", use_container_width=True):
+            if st.button(f"{icon}\n{label}", key=f"sb_q_{i}", use_container_width=True):
                 st.session_state.sb_quick = f"{icon} {label}에 대해 현재 데이터를 기반으로 분석해줘"
 
     # 대화 이력 표시 (최근 6개만)
