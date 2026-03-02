@@ -1,4 +1,5 @@
 import streamlit as st
+import os
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
@@ -204,8 +205,9 @@ p { font-size:15px !important; }
 @st.cache_data
 def load_data():
     try:
-        f = pd.read_csv("forecast_data.csv", dtype={"combo": str})
-        a = pd.read_csv("actual_data.csv",   dtype={"combo": str})
+        _dir = os.path.dirname(os.path.abspath(__file__))
+        f = pd.read_csv(os.path.join(_dir, "forecast_data.csv"), dtype={"combo": str})
+        a = pd.read_csv(os.path.join(_dir, "actual_data.csv"),   dtype={"combo": str})
     except Exception:
         np.random.seed(7)
         dates  = ["2025-06","2025-07","2025-08","2025-10",
