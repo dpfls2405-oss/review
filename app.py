@@ -474,14 +474,24 @@ with st.sidebar:
         box-shadow: 0 2px 8px rgba(37,99,235,0.35) !important;
     }
     section[data-testid="stSidebar"] .stRadio > div > label > div {
-        display: none !important;
+        display: flex !important;
+        gap: 4px !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+    section[data-testid="stSidebar"] .stRadio > div > label > div > p {
+        font-size: 12px !important;
+        font-weight: 600 !important;
+        color: inherit !important;
+        margin: 0 !important;
+        line-height: 1 !important;
     }
     </style>
     """, unsafe_allow_html=True)
 
-    view_mode = st.radio("조회 방식", ["📅 단일 월", "📆 기간 범위"],
+    st.markdown('<div style="font-size:12px;font-weight:700;color:#93B4D8;margin-bottom:5px;">📅 조회 방식</div>', unsafe_allow_html=True)
+    view_mode = st.radio("조회 방식", ["단일 월", "기간 범위"],
                          horizontal=True, label_visibility="collapsed")
-    view_mode = "단일 월" if "단일" in view_mode else "기간 범위"
     st.markdown("<div style='height:2px'></div>", unsafe_allow_html=True)
 
     sel_ym       = None
@@ -1148,7 +1158,7 @@ with tab_help:
     """, unsafe_allow_html=True)
 
     # ── STEP 가이드 ──
-    st.markdown("### 🚀 시작하기 — 3단계")
+    st.markdown("### 🚀 시작하기")
 
     steps = [
         ("#3B82F6", "#DBEAFE", "1", "데이터 준비",
