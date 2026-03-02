@@ -457,15 +457,16 @@ with st.sidebar:
     section[data-testid="stSidebar"] .stRadio > div > label {
         background: #1C2B3F !important;
         border: 1.5px solid #3D5A80 !important;
-        border-radius: 8px !important;
-        padding: 5px 12px !important;
-        font-size: 12px !important;
+        border-radius: 7px !important;
+        padding: 4px 8px !important;
+        font-size: 11px !important;
         font-weight: 600 !important;
         color: #93C5FD !important;
         cursor: pointer !important;
         min-height: unset !important;
         flex: 1 !important;
         text-align: center !important;
+        white-space: nowrap !important;
     }
     section[data-testid="stSidebar"] .stRadio > div > label:has(input:checked) {
         background: #2563EB !important;
@@ -480,11 +481,12 @@ with st.sidebar:
         justify-content: center !important;
     }
     section[data-testid="stSidebar"] .stRadio > div > label > div > p {
-        font-size: 12px !important;
+        font-size: 11px !important;
         font-weight: 600 !important;
         color: inherit !important;
         margin: 0 !important;
         line-height: 1 !important;
+        white-space: nowrap !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -522,13 +524,6 @@ with st.sidebar:
         period_label = f"{start_ym} ~ {end_ym}"
         n_months = ym_options.index(end_ym) - ym_options.index(start_ym) + 1
 
-    # 선택 기간 뱃지 표시
-    st.markdown(
-        f"<div style='background:#1C2B3F;border-radius:8px;padding:7px 12px;"
-        f"font-size:11px;color:#93C5FD;margin-bottom:6px;font-weight:600'>"
-        f"📆 {period_label} &nbsp;·&nbsp; {n_months}개월</div>",
-        unsafe_allow_html=True
-    )
 
     st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
     all_brands = sorted(mg_all["brand"].unique())
@@ -1158,7 +1153,7 @@ with tab_help:
     """, unsafe_allow_html=True)
 
     # ── STEP 가이드 ──
-    st.markdown("### 🚀 시작하기")
+    st.markdown("### 🚀 시작하기 — 3단계")
 
     steps = [
         ("#3B82F6", "#DBEAFE", "1", "데이터 준비",
