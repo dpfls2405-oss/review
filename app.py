@@ -1011,6 +1011,58 @@ with tab3:
             st.dataframe(styled,use_container_width=True,height=280)
             st.markdown('</div>', unsafe_allow_html=True)
 
+        # ── 시리즈 드릴다운 ──
+        st.markdown('<div class="section-card">', unsafe_allow_html=True)
+        st.markdown('<div class="section-title">🔍 시리즈 드릴다운 — 품목별 상세</div>', unsafe_allow_html=True)
+        drill_series = st.selectbox(
+            "조회할 시리즈 선택 (달성률 낮은 순)",
+            options=sr_top.sort_values("달성률(%)")["series"].tolist(),
+            format_func=lambda s: f"{s}  ·  달성률 {sr_top.loc[sr_top['series']==s,'달성률(%)'].values[0]:.1f}%  |  오차 {sr_top.loc[sr_top['series']==s,'오차량'].values[0]:,.0f}",
+            key="sr_drill"
+        )
+        if drill_series:
+            df_drill = df_sr[df_sr["series"] == drill_series].copy()
+            df_drill = df_drill[["ym","brand","combo","name","supply","forecast","actual","차이","달성률(%)"]].sort_values("달성률(%)")
+            df_drill["supply"] = df_drill["supply"].replace({"<NA>": "미분류"})
+            d_f = int(df_drill["forecast"].sum())
+            d_a = int(df_drill["actual"].sum())
+            d_r = round(d_a/d_f*100,1) if d_f>0 else 0.0
+            d_d = d_a - d_f
+            kpi_color = "#10B981" if d_r>=100 else "#F59E0B" if d_r>=90 else "#EF4444"
+            sign = "+" if d_d>=0 else ""
+            kpi_html = (
+                '<div style="display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap;">' +
+                f'<div style="background:#EFF6FF;border-radius:10px;padding:12px 20px;border-left:4px solid #3B82F6;min-width:120px;"><div style="font-size:11px;color:#64748B;font-weight:700;margin-bottom:4px;">예측수요</div><div style="font-size:22px;font-weight:900;color:#3B82F6;">{d_f:,}</div></div>' +
+                f'<div style="background:#F0FDF4;border-radius:10px;padding:12px 20px;border-left:4px solid #10B981;min-width:120px;"><div style="font-size:11px;color:#64748B;font-weight:700;margin-bottom:4px;">실수주</div><div style="font-size:22px;font-weight:900;color:#10B981;">{d_a:,}</div></div>' +
+                f'<div style="background:#FFF7ED;border-radius:10px;padding:12px 20px;border-left:4px solid {kpi_color};min-width:120px;"><div style="font-size:11px;color:#64748B;font-weight:700;margin-bottom:4px;">달성률</div><div style="font-size:22px;font-weight:900;color:{kpi_color};">{d_r:.1f}%</div></div>' +
+                f'<div style="background:#FFF1F2;border-radius:10px;padding:12px 20px;border-left:4px solid #F43F5E;min-width:120px;"><div style="font-size:11px;color:#64748B;font-weight:700;margin-bottom:4px;">오차</div><div style="font-size:22px;font-weight:900;color:{"#10B981" if d_d>=0 else "#EF4444"};">{sign}{d_d:,}</div></div>' +
+                f'<div style="background:#F8FAFF;border-radius:10px;padding:12px 20px;border-left:4px solid #8B5CF6;min-width:120px;"><div style="font-size:11px;color:#64748B;font-weight:700;margin-bottom:4px;">품목 수</div><div style="font-size:22px;font-weight:900;color:#8B5CF6;">{len(df_drill):,}건</div></div>' +
+                '</div>'
+            )
+            st.markdown(kpi_html, unsafe_allow_html=True)
+            def cr(v):
+                if isinstance(v,(int,float)):
+                    if v>=100: return "background:#D1FAE5;color:#065F46;font-weight:700"
+                    if v>=90:  return "background:#FEF9C3;color:#92400E;font-weight:700"
+                    return "background:#FEE2E2;color:#991B1B;font-weight:700"
+                return ""
+            def cd(v):
+                if isinstance(v,(int,float)):
+                    if v>0: return "color:#059669;font-weight:600"
+                    if v<0: return "color:#DC2626;font-weight:600"
+                return ""
+            styled_drill = (
+                df_drill.rename(columns={"ym":"월","brand":"브랜드","combo":"콤보","name":"품목명",
+                                         "supply":"공급단","forecast":"예측수요","actual":"실수주",
+                                         "차이":"차이(실-예측)","달성률(%)":"달성률(%)"})
+                .style
+                .format({"예측수요":"{:,.0f}","실수주":"{:,.0f}","차이(실-예측)":"{:+,.0f}","달성률(%)":"{:.1f}%"})
+                .applymap(cr, subset=["달성률(%)"])
+                .applymap(cd, subset=["차이(실-예측)"])
+            )
+            st.dataframe(styled_drill, use_container_width=True, height=min(400, 40+len(df_drill)*35))
+        st.markdown('</div>', unsafe_allow_html=True)
+
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #  탭4: 상세 데이터
