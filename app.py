@@ -49,8 +49,8 @@ section[data-testid="stSidebar"] .stMultiSelect span[data-baseweb="tag"] span { 
 section[data-testid="stSidebar"] hr { border-color: #2A3A52 !important; margin: 16px 0 !important; }
 section[data-testid="stSidebar"] .stSelectbox label,
 section[data-testid="stSidebar"] .stMultiSelect label {
-    font-size: 14px !important; font-weight: 700 !important;
-    color: #93B4D8 !important; margin-bottom: 6px !important;
+    font-size: 12px !important; font-weight: 700 !important;
+    color: #93B4D8 !important; margin-bottom: 4px !important;
 }
 section[data-testid="stSidebar"] .stTextInput > div > div > input {
     background: #1C2B3F !important;
@@ -432,7 +432,7 @@ with st.sidebar:
     # ── 헤더 ──
     st.markdown("""
     <div style="padding:20px 4px 4px 4px">
-        <div style="font-size:22px;font-weight:900;color:#F8FAFC;letter-spacing:-0.02em;">📦 수요예측 모니터링</div>
+        <div style="font-size:17px;font-weight:900;color:#F8FAFC;letter-spacing:-0.02em;">📦 수요예측 모니터링</div>
         <div style="font-size:12px;color:#64748B;margin-top:4px;">Demand Forecast Dashboard</div>
     </div>""", unsafe_allow_html=True)
     st.markdown("---")
@@ -441,8 +441,48 @@ with st.sidebar:
     ym_options = sorted(mg_all["ym"].unique())          # 오래된 순 정렬
     ym_options_desc = list(reversed(ym_options))        # 최신순 (selectbox용)
 
-    view_mode = st.radio("📅 조회 방식", ["단일 월", "기간 범위"], horizontal=True)
-    st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
+    # 라디오 버튼 커스텀 스타일 (사이드바 전용 - 가로 컴팩트)
+    st.markdown("""
+    <style>
+    section[data-testid="stSidebar"] .stRadio > label {
+        font-size: 12px !important;
+        font-weight: 700 !important;
+        color: #93B4D8 !important;
+        margin-bottom: 4px !important;
+    }
+    section[data-testid="stSidebar"] .stRadio > div {
+        gap: 6px !important;
+        flex-direction: row !important;
+    }
+    section[data-testid="stSidebar"] .stRadio > div > label {
+        background: #1C2B3F !important;
+        border: 1.5px solid #3D5A80 !important;
+        border-radius: 8px !important;
+        padding: 5px 12px !important;
+        font-size: 12px !important;
+        font-weight: 600 !important;
+        color: #93C5FD !important;
+        cursor: pointer !important;
+        min-height: unset !important;
+        flex: 1 !important;
+        text-align: center !important;
+    }
+    section[data-testid="stSidebar"] .stRadio > div > label:has(input:checked) {
+        background: #2563EB !important;
+        border-color: #60A5FA !important;
+        color: white !important;
+        box-shadow: 0 2px 8px rgba(37,99,235,0.35) !important;
+    }
+    section[data-testid="stSidebar"] .stRadio > div > label > div {
+        display: none !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    view_mode = st.radio("조회 방식", ["📅 단일 월", "📆 기간 범위"],
+                         horizontal=True, label_visibility="collapsed")
+    view_mode = "단일 월" if "단일" in view_mode else "기간 범위"
+    st.markdown("<div style='height:2px'></div>", unsafe_allow_html=True)
 
     sel_ym       = None
     sel_ym_range = None
@@ -475,15 +515,15 @@ with st.sidebar:
     # 선택 기간 뱃지 표시
     st.markdown(
         f"<div style='background:#1C2B3F;border-radius:8px;padding:7px 12px;"
-        f"font-size:12px;color:#93C5FD;margin-bottom:8px;font-weight:600'>"
+        f"font-size:11px;color:#93C5FD;margin-bottom:6px;font-weight:600'>"
         f"📆 {period_label} &nbsp;·&nbsp; {n_months}개월</div>",
         unsafe_allow_html=True
     )
 
     st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
     all_brands = sorted(mg_all["brand"].unique())
-    sel_brands = st.multiselect("🏷️ 브랜드", all_brands, default=all_brands)
-    if not sel_brands: sel_brands = all_brands
+    sel_brand_single = st.selectbox("🏷️ 브랜드", ["전체"] + all_brands)
+    sel_brands = all_brands if sel_brand_single == "전체" else [sel_brand_single]
     st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
     supply_vals = sorted([v for v in mg_all["supply"].unique() if v not in ("<NA>","nan","","None")])
     sel_supply = st.selectbox("🏭 공급단", ["전체"]+supply_vals)
@@ -500,7 +540,7 @@ with st.sidebar:
     st.markdown("---")
 
     # API 키 입력
-    st.markdown('<div style="font-size:13px;font-weight:700;color:#93B4D8;margin-bottom:6px;">🔑 Gemini API Key</div>', unsafe_allow_html=True)
+    st.markdown('<div style="font-size:12px;font-weight:700;color:#93B4D8;margin-bottom:4px;">🔑 Gemini API Key</div>', unsafe_allow_html=True)
     api_key = st.text_input("API Key", type="password", placeholder="AIza...",
                             label_visibility="collapsed", key="gemini_api_key")
     if api_key:
@@ -511,7 +551,7 @@ with st.sidebar:
     # 챗봇 헤더
     st.markdown("""
     <div class="sb-chat-header">
-        <div class="sb-chat-header-title">🤖 AI 분석 어시스턴트</div>
+        <div class="sb-chat-header-title" style="font-size:13px;">🤖 AI 분석 어시스턴트</div>
         <div class="sb-chat-header-sub">현재 대시보드 데이터 기반 질의응답 · Gemini 2.0 Flash</div>
     </div>
     """, unsafe_allow_html=True)
