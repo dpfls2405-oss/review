@@ -805,13 +805,42 @@ with tab1:
     if df_ov.empty:
         st.warning("선택한 조건에 해당하는 데이터가 없습니다."); st.stop()
 
-    t_f=int(df_ov["forecast"].sum()); t_a=int(df_ov["actual"].sum())
-    t_d=t_a-t_f; t_r=round(t_a/t_f*100,1) if t_f>0 else 0.0
     month_label = period_label  # 단일 월 또는 기간 범위 레이블
+
+    # ── 부품류 키워드 ──
+    _PARTS_KW = ['ACCESSORY','악세사리','이지리페어','EASY REPAIR','EASY-REPAIR',
+                 '부품','PARTS','PART','리페어','REPAIR','패브릭','FABRIC','가스','실린더']
+    def _is_parts(s):
+        s_up = str(s).upper()
+        return any(kw.upper() in s_up for kw in _PARTS_KW)
+
+    _parts_mask = df_ov["series"].apply(_is_parts)
+    df_ov_product = df_ov[~_parts_mask]   # 제품만
+    df_ov_parts   = df_ov[_parts_mask]    # 부품류만
+
+    # ── KPI 분류 드롭다운 ──
+    kpi_cat = st.selectbox(
+        "📦 예측 수요 분류",
+        ["전체", "제품 (부품류 제외)", "부품류"],
+        key="kpi_cat",
+        label_visibility="collapsed",
+    )
+    if kpi_cat == "제품 (부품류 제외)":
+        df_kpi = df_ov_product
+        kpi_label = "제품만"
+    elif kpi_cat == "부품류":
+        df_kpi = df_ov_parts
+        kpi_label = "부품류만"
+    else:
+        df_kpi = df_ov
+        kpi_label = "전체"
+
+    t_f=int(df_kpi["forecast"].sum()); t_a=int(df_kpi["actual"].sum())
+    t_d=t_a-t_f; t_r=round(t_a/t_f*100,1) if t_f>0 else 0.0
 
     c1,c2,c3,c4=st.columns(4)
     for col,color,label,value,sub in [
-        (c1,"#3B82F6","예측 수요",fmt_int(t_f),f"{month_label} 예측 합계"),
+        (c1,"#3B82F6","예측 수요",fmt_int(t_f),f"{month_label} · {kpi_label}"),
         (c2,"#10B981","실 수주",fmt_int(t_a),f"{month_label} 실수주 합계"),
         (c3,"#F59E0B" if t_d>=0 else "#EF4444","예측 오차",("▲ +" if t_d>=0 else "▼ ")+fmt_int(abs(t_d)),"실수주 − 예측"),
         (c4,"#8B5CF6","달성률",fmt_pct(t_r),"실수주 ÷ 예측 × 100"),
