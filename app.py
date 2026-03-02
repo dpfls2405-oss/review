@@ -534,22 +534,24 @@ with st.sidebar:
 
 {context_text}"""
 
-            from google import genai
-            from google.genai import types as gtypes
+            import google.generativeai as genai
             try:
-                client = genai.Client(api_key=api_key)
+                genai.configure(api_key=api_key)
+                model = genai.GenerativeModel(
+                    model_name="gemini-2.0-flash",
+                    system_instruction=system_instruction,
+                )
 
                 # 멀티턴 히스토리 변환 (Gemini 형식: user/model)
                 history = []
                 for m in st.session_state.sb_messages[:-1]:  # 마지막 user 메시지 제외
                     role = "user" if m["role"] == "user" else "model"
-                    history.append(gtypes.Content(role=role, parts=[gtypes.Part(text=m["content"])]))
+                    history.append({"role": role, "parts": [m["content"]]})
 
-                response = client.models.generate_content(
-                    model="gemini-2.0-flash",
-                    contents=history + [gtypes.Content(role="user", parts=[gtypes.Part(text=prompt_sb)])],
-                    config=gtypes.GenerateContentConfig(
-                        system_instruction=system_instruction,
+                chat = model.start_chat(history=history)
+                response = chat.send_message(
+                    prompt_sb,
+                    generation_config=genai.types.GenerationConfig(
                         max_output_tokens=400,
                         temperature=0.7,
                     ),
@@ -559,7 +561,7 @@ with st.sidebar:
                 st.rerun()
             except Exception as e:
                 err = str(e)
-                if "API_KEY_INVALID" in err or "API key" in err.lower():
+                if "API_KEY_INVALID" in err or "api key" in err.lower():
                     st.error("❌ API 키가 올바르지 않습니다. Google AI Studio에서 확인하세요.")
                 elif "quota" in err.lower() or "429" in err:
                     st.error("⚠️ 무료 사용량 한도 초과. 잠시 후 다시 시도하세요.")
