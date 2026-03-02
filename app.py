@@ -138,7 +138,8 @@ section[data-testid="stSidebar"] .stChatInputContainer textarea {
     font-size: 17px; font-weight: 700; color: #0F172A; margin-bottom: 18px;
     padding-bottom: 12px; border-bottom: 2px solid #EFF6FF; letter-spacing: -0.01em;
 }
-.stTabs [data-baseweb="tab-list"] { display: none !important; }
+.stTabs [data-baseweb="tab-list"],
+.stTabs [data-baseweb="tab-list"] * { display: none !important; height: 0 !important; overflow: hidden !important; margin: 0 !important; padding: 0 !important; }
 .stTabs [data-baseweb="tab-panel"] { padding-top: 0 !important; }
 .custom-tab-bar { display:flex;gap:8px;padding:0 0 16px 0;flex-wrap:nowrap;align-items:center;user-select:none; }
 .custom-tab {
