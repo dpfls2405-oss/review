@@ -258,11 +258,19 @@ except: mg_all["ym_dt"] = mg_all["ym"]
 # ══════════════════════════════════════════════
 #  유틸
 # ══════════════════════════════════════════════
-def apply_filters(df, ym=None, brands=None, supply=None):
+def apply_filters(df, ym=None, ym_range=None, brands=None, supply=None):
+    """
+    ym       : 단일 월 문자열 (단일 조회 모드)
+    ym_range : (시작월, 종료월) 튜플 (누적 범위 모드)
+    """
     d = df.copy()
-    if ym:     d = d[d["ym"]==ym]
+    if ym_range:
+        start, end = ym_range
+        d = d[(d["ym"] >= start) & (d["ym"] <= end)]
+    elif ym:
+        d = d[d["ym"] == ym]
     if brands: d = d[d["brand"].isin(brands)]
-    if supply and supply != "전체": d = d[d["supply"]==supply]
+    if supply and supply != "전체": d = d[d["supply"] == supply]
     return d
 
 def fmt_int(v): return f"{int(v):,}"
@@ -387,7 +395,7 @@ def rule_based_reply(question: str, df: pd.DataFrame, sel_ym, sel_brands, sel_su
     )
 
 
-def build_context(df, sel_ym, sel_brands, sel_supply):
+def build_context(df, period_label, sel_brands, sel_supply):
     if df.empty: return "현재 선택된 데이터가 없습니다."
     t_f = int(df["forecast"].sum()); t_a = int(df["actual"].sum())
     t_r = round(t_a/t_f*100,1) if t_f>0 else 0.0; t_d = t_a-t_f
@@ -402,7 +410,7 @@ def build_context(df, sel_ym, sel_brands, sel_supply):
     under = sr_agg[sr_agg["r"]<90]["series"].tolist()
     over  = sr_agg[sr_agg["r"]>110]["series"].tolist()
     return f"""=== 수요예측 대시보드 현재 데이터 ===
-기준 년월: {sel_ym} | 브랜드: {', '.join(sel_brands)} | 공급단: {sel_supply}
+조회 기간: {period_label} | 브랜드: {', '.join(sel_brands)} | 공급단: {sel_supply}
 총 품목: {len(df):,}건
 
 [전체] 예측 {t_f:,} / 실수주 {t_a:,} / 달성률 {t_r:.1f}% / 오차 {t_d:+,}
@@ -429,20 +437,60 @@ with st.sidebar:
     </div>""", unsafe_allow_html=True)
     st.markdown("---")
 
-    # ── 필터 ──
-    ym_options = sorted(mg_all["ym"].unique(), reverse=True)
-    sel_ym = st.selectbox("📅 기준 년월", ym_options)
-    st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
+    # ── 조회 모드 ──
+    ym_options = sorted(mg_all["ym"].unique())          # 오래된 순 정렬
+    ym_options_desc = list(reversed(ym_options))        # 최신순 (selectbox용)
+
+    view_mode = st.radio("📅 조회 방식", ["단일 월", "기간 범위"], horizontal=True)
+    st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
+
+    sel_ym       = None
+    sel_ym_range = None
+
+    if view_mode == "단일 월":
+        sel_ym = st.selectbox("기준 월 선택", ym_options_desc, label_visibility="collapsed")
+        sel_ym_range = None
+        period_label = sel_ym.replace("-","년 ") + "월"
+        n_months = 1
+
+    else:  # 기간 범위
+        col_s, col_e = st.columns(2)
+        with col_s:
+            start_ym = st.selectbox("시작 월", ym_options, index=0,
+                                    label_visibility="visible")
+        with col_e:
+            # 종료 기본값: 마지막 월
+            end_default = len(ym_options) - 1
+            end_ym = st.selectbox("종료 월", ym_options,
+                                  index=end_default, label_visibility="visible")
+        if start_ym > end_ym:
+            st.warning("⚠️ 시작 월이 종료 월보다 늦습니다.")
+            start_ym, end_ym = end_ym, start_ym
+
+        sel_ym_range = (start_ym, end_ym)
+        sel_ym = end_ym        # 단일 월 참조가 필요한 곳(탭2 등)에서 종료월 사용
+        period_label = f"{start_ym} ~ {end_ym}"
+        n_months = ym_options.index(end_ym) - ym_options.index(start_ym) + 1
+
+    # 선택 기간 뱃지 표시
+    st.markdown(
+        f"<div style='background:#1C2B3F;border-radius:8px;padding:7px 12px;"
+        f"font-size:12px;color:#93C5FD;margin-bottom:8px;font-weight:600'>"
+        f"📆 {period_label} &nbsp;·&nbsp; {n_months}개월</div>",
+        unsafe_allow_html=True
+    )
+
+    st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
     all_brands = sorted(mg_all["brand"].unique())
     sel_brands = st.multiselect("🏷️ 브랜드", all_brands, default=all_brands)
     if not sel_brands: sel_brands = all_brands
-    st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
     supply_vals = sorted([v for v in mg_all["supply"].unique() if v not in ("<NA>","nan","","None")])
     sel_supply = st.selectbox("🏭 공급단", ["전체"]+supply_vals)
 
     st.markdown("---")
     st.markdown(f"""<div style="font-size:13px;color:#94A3B8;line-height:2.2;">
-        📆 기간: <b style="color:#CBD5E1">{mg_all['ym'].min()} ~ {mg_all['ym'].max()}</b><br>
+        📆 전체 기간: <b style="color:#CBD5E1">{mg_all['ym'].min()} ~ {mg_all['ym'].max()}</b><br>
         🔢 총 콤보 수: <b style="color:#CBD5E1">{mg_all['combo'].nunique():,}개</b>
     </div>""", unsafe_allow_html=True)
 
@@ -475,7 +523,7 @@ with st.sidebar:
         st.session_state.sb_quick = ""
 
     # 현재 필터 데이터
-    df_chat = apply_filters(mg_all, ym=sel_ym, brands=sel_brands, supply=sel_supply)
+    df_chat = apply_filters(mg_all, ym=sel_ym if not sel_ym_range else None, ym_range=sel_ym_range, brands=sel_brands, supply=sel_supply)
     t_f_sb  = int(df_chat["forecast"].sum()) if not df_chat.empty else 0
     t_a_sb  = int(df_chat["actual"].sum())   if not df_chat.empty else 0
     t_r_sb  = round(t_a_sb/t_f_sb*100,1)    if t_f_sb>0 else 0.0
@@ -560,7 +608,7 @@ with st.sidebar:
             st.warning("⚠️ Gemini API 키를 먼저 입력하세요.")
         else:
             st.session_state.sb_messages.append({"role": "user", "content": prompt_sb})
-            context_text = build_context(df_chat, sel_ym, sel_brands, sel_supply)
+            context_text = build_context(df_chat, period_label, sel_brands, sel_supply)
             system_instruction = f"""당신은 수요예측 대시보드 전문 분석 어시스턴트입니다.
 아래 데이터를 기반으로 간결하고 실용적인 인사이트를 한국어로 제공하세요.
 사이드바에 표시되므로 답변은 반드시 300자 이내로 핵심만 작성하세요.
@@ -661,13 +709,13 @@ tab1, tab2, tab3, tab4, tab_help = st.tabs([
 #  탭1: 개요
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 with tab1:
-    df_ov = apply_filters(mg_all, ym=sel_ym, brands=sel_brands, supply=sel_supply)
+    df_ov = apply_filters(mg_all, ym=sel_ym if not sel_ym_range else None, ym_range=sel_ym_range, brands=sel_brands, supply=sel_supply)
     if df_ov.empty:
         st.warning("선택한 조건에 해당하는 데이터가 없습니다."); st.stop()
 
     t_f=int(df_ov["forecast"].sum()); t_a=int(df_ov["actual"].sum())
     t_d=t_a-t_f; t_r=round(t_a/t_f*100,1) if t_f>0 else 0.0
-    month_label=sel_ym.replace("-","년 ")+"월"
+    month_label = period_label  # 단일 월 또는 기간 범위 레이블
 
     c1,c2,c3,c4=st.columns(4)
     for col,color,label,value,sub in [
@@ -745,7 +793,11 @@ with tab1:
 #  탭2: 월별 추이
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 with tab2:
-    df_ts=apply_filters(mg_all,brands=sel_brands,supply=sel_supply)
+    # 단일 월 모드에서는 전체 기간 데이터로 추이를 보여줌
+    df_ts=apply_filters(mg_all, ym_range=sel_ym_range, brands=sel_brands, supply=sel_supply)
+    if view_mode == "단일 월":
+        st.info(f"📌 현재 **단일 월({sel_ym})** 조회 중입니다. 사이드바에서 **기간 범위** 모드로 전환하면 여러 달의 추이를 비교할 수 있습니다.")
+        df_ts = apply_filters(mg_all, brands=sel_brands, supply=sel_supply)  # 추이는 전체 기간 표시
     if df_ts.empty:
         st.warning("선택한 조건에 해당하는 데이터가 없습니다.")
     else:
@@ -792,7 +844,7 @@ with tab2:
 #  탭3: 시리즈 분석
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 with tab3:
-    df_sr=apply_filters(mg_all,ym=sel_ym,brands=sel_brands,supply=sel_supply)
+    df_sr=apply_filters(mg_all,ym=sel_ym if not sel_ym_range else None,ym_range=sel_ym_range,brands=sel_brands,supply=sel_supply)
     if df_sr.empty:
         st.warning("선택한 조건에 해당하는 데이터가 없습니다.")
     else:
@@ -872,7 +924,7 @@ with tab3:
 #  탭4: 상세 데이터
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 with tab4:
-    df_det=apply_filters(mg_all,ym=sel_ym,brands=sel_brands,supply=sel_supply)
+    df_det=apply_filters(mg_all,ym=sel_ym if not sel_ym_range else None,ym_range=sel_ym_range,brands=sel_brands,supply=sel_supply)
     if df_det.empty:
         st.warning("선택한 조건에 해당하는 데이터가 없습니다.")
     else:
@@ -899,7 +951,7 @@ with tab4:
         styled_det=(display_det.style.format({"forecast":"{:,.0f}","actual":"{:,.0f}","차이":"{:,.0f}","달성률(%)":"{:.1f}%"}).applymap(lambda v:"background:#FEE2E2;color:#991B1B" if isinstance(v,(int,float)) and v<0 else "",subset=["차이"]))
         st.dataframe(styled_det,use_container_width=True,height=400)
         csv_data=df_det2[cols_show].to_csv(index=False,encoding="utf-8-sig")
-        st.download_button("⬇️  CSV 다운로드",data=csv_data,file_name=f"forecast_detail_{sel_ym}.csv",mime="text/csv")
+        st.download_button("⬇️  CSV 다운로드",data=csv_data,file_name=f"forecast_detail_{period_label.replace(" ","").replace("~","_")}.csv",mime="text/csv")
 
         st.markdown("<div style='height:24px'></div>",unsafe_allow_html=True)
 
@@ -915,8 +967,8 @@ with tab4:
             brand_sum["rate"]=np.where(brand_sum["forecast"]>0,(brand_sum["actual"]/brand_sum["forecast"]*100).round(1),0)
             sr_sum=df_det2.groupby(["combo","name","series"],as_index=False).agg(forecast=("forecast","sum"),actual=("actual","sum"))
             sr_sum["rate"]=np.where(sr_sum["forecast"]>0,(sr_sum["actual"]/sr_sum["forecast"]*100).round(1),0)
-            month_label2=sel_ym.replace("-","년 ")+"월"
-            filter_desc=month_label2
+            month_label2 = period_label
+            filter_desc = month_label2
             if sel_supply!="전체": filter_desc+=f" · {sel_supply}"
             if search: filter_desc+=f" · 검색: '{search}'"
             if t_rate>=100: rate_color="highlight-green";rate_word="초과달성"
