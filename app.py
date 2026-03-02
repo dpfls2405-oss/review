@@ -235,6 +235,8 @@ def load_data():
     for df in [f, a]:
         for col in df.select_dtypes(include=['object','string']).columns:
             df[col] = df[col].astype(str).str.strip()
+        if 'brand' in df.columns:
+            df['brand'] = df['brand'].replace({'알로소': '시디즈'})
         if 'supply' in df.columns:
             SUPPLY_NORM = {
                 '시디즈':      '시디즈(평택)', '의자내작':    '시디즈(평택)',
@@ -605,13 +607,7 @@ with st.sidebar:
     t_r_sb  = round(t_a_sb/t_f_sb*100,1)    if t_f_sb>0 else 0.0
     rate_color_sb = "#34D399" if t_r_sb>=100 else "#F87171"
 
-    # 현재 컨텍스트 한 줄 요약
-    st.markdown(f"""<div style="font-size:11px;color:#64748B;background:#1C2B3F;border-radius:7px;
-        padding:7px 10px;margin-bottom:8px;line-height:1.7;">
-        📅 {sel_ym} &nbsp;·&nbsp; 예측 <b style="color:#93C5FD">{t_f_sb:,}</b>
-        &nbsp;/&nbsp; 실수주 <b style="color:#86EFAC">{t_a_sb:,}</b>
-        &nbsp;/&nbsp; 달성률 <b style="color:{rate_color_sb}">{t_r_sb:.1f}%</b>
-    </div>""", unsafe_allow_html=True)
+
 
     # 빠른 질문 버튼 (2열 그리드)
     quick_qs = [
