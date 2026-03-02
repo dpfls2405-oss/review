@@ -652,8 +652,8 @@ components.html("""
 </script></body></html>
 """, height=0, scrolling=False)
 
-tab1, tab2, tab3, tab4 = st.tabs([
-    "  📊 개요  ","  📈 월별 추이  ","  🔎 시리즈 분석  ","  📋 상세 데이터  "
+tab1, tab2, tab3, tab4, tab_help = st.tabs([
+    "  📊 개요  ","  📈 월별 추이  ","  🔎 시리즈 분석  ","  📋 상세 데이터  ","  ❓ 사용법  "
 ])
 
 
@@ -994,3 +994,162 @@ with tab4:
                 st.markdown('</div>',unsafe_allow_html=True)
 
             st.markdown('</div>',unsafe_allow_html=True)
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  도움말 탭
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+with tab_help:
+
+    st.markdown("""
+    <style>
+    .help-hero {
+        background: linear-gradient(135deg, #1D4ED8 0%, #1E40AF 100%);
+        border-radius: 20px; padding: 36px 40px; color: white; margin-bottom: 28px;
+        box-shadow: 0 8px 32px rgba(29,78,216,0.25);
+    }
+    .help-hero-title { font-size: 28px; font-weight: 900; letter-spacing: -0.02em; margin-bottom: 8px; }
+    .help-hero-sub   { font-size: 16px; opacity: 0.85; line-height: 1.7; }
+    .help-step-card {
+        background: white; border-radius: 16px; padding: 24px 28px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.06); margin-bottom: 16px;
+        border-left: 5px solid;
+    }
+    .help-step-num {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 32px; height: 32px; border-radius: 50%;
+        font-size: 15px; font-weight: 900; color: white;
+        margin-right: 10px; flex-shrink: 0;
+    }
+    .help-step-title { font-size: 17px; font-weight: 800; color: #0F172A; }
+    .help-step-body  { font-size: 14px; color: #475569; line-height: 2.0; margin-top: 10px; padding-left: 42px; }
+    .help-tag {
+        display: inline-block; padding: 3px 12px; border-radius: 99px;
+        font-size: 12px; font-weight: 700; margin: 2px 3px;
+    }
+    .help-tab-card {
+        background: white; border-radius: 14px; padding: 20px 24px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05); height: 100%;
+        border-top: 4px solid;
+    }
+    .help-tab-icon  { font-size: 28px; margin-bottom: 8px; }
+    .help-tab-name  { font-size: 15px; font-weight: 800; color: #0F172A; margin-bottom: 6px; }
+    .help-tab-desc  { font-size: 13px; color: #64748B; line-height: 1.8; }
+    .help-faq-q { font-size: 15px; font-weight: 700; color: #1D4ED8; margin-bottom: 6px; }
+    .help-faq-a { font-size: 14px; color: #475569; line-height: 1.9; margin-bottom: 20px; padding-left: 4px; border-left: 3px solid #BFDBFE; padding-left: 12px; }
+    .help-tip-box {
+        background: linear-gradient(135deg, #F0FDF4 0%, #ECFDF5 100%);
+        border-radius: 12px; padding: 18px 22px;
+        border: 1.5px solid #A7F3D0; font-size: 14px;
+        color: #065F46; line-height: 2.0;
+    }
+    </style>
+
+    <!-- 히어로 배너 -->
+    <div class="help-hero">
+        <div class="help-hero-title">📦 수요예측 모니터링 대시보드</div>
+        <div class="help-hero-sub">
+            예측 수요와 실수주 데이터를 한눈에 비교하고,<br>
+            AI 어시스턴트와 함께 인사이트를 도출하는 분석 도구입니다.
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # ── STEP 가이드 ──
+    st.markdown("### 🚀 시작하기 — 3단계")
+
+    steps = [
+        ("#3B82F6", "#DBEAFE", "1", "데이터 준비",
+         """CSV 파일 2개를 앱과 같은 폴더에 위치시키세요.<br>
+         <span class='help-tag' style='background:#DBEAFE;color:#1D4ED8'>forecast_data.csv</span> — 예측 데이터 (ym, brand, series, combo, name, supply, forecast 컬럼)<br>
+         <span class='help-tag' style='background:#DBEAFE;color:#1D4ED8'>actual_data.csv</span> — 실수주 데이터 (ym, combo, actual 컬럼)<br>
+         📌 파일이 없어도 샘플 데이터로 자동 실행됩니다."""),
+        ("#10B981", "#D1FAE5", "2", "필터 설정",
+         """사이드바에서 분석 조건을 선택하세요.<br>
+         <span class='help-tag' style='background:#D1FAE5;color:#065F46'>📅 기준 년월</span> 분석할 월 선택 (최신순 정렬)<br>
+         <span class='help-tag' style='background:#D1FAE5;color:#065F46'>🏷️ 브랜드</span> 보고 싶은 브랜드만 선택 (다중 선택 가능)<br>
+         <span class='help-tag' style='background:#D1FAE5;color:#065F46'>🏭 공급단</span> 특정 공급처만 필터링 (전체 선택 시 전부 표시)"""),
+        ("#8B5CF6", "#EDE9FE", "3", "AI 챗봇 활성화 (선택)",
+         """사이드바 하단에서 Gemini API 키를 입력하면 AI 분석이 활성화됩니다.<br>
+         <span class='help-tag' style='background:#EDE9FE;color:#5B21B6'>🔑 API 키 발급</span> aistudio.google.com → Get API key → Create API key<br>
+         <span class='help-tag' style='background:#EDE9FE;color:#5B21B6'>💬 빠른 질문</span> 버튼 클릭 또는 직접 질문 입력<br>
+         📌 API 키 없이도 앱의 모든 차트·분석 기능은 정상 사용 가능합니다."""),
+    ]
+
+    for color, bg, num, title, body in steps:
+        st.markdown(f"""
+        <div class="help-step-card" style="border-left-color:{color}">
+            <div style="display:flex;align-items:center">
+                <span class="help-step-num" style="background:{color}">STEP {num}</span>
+                <span class="help-step-title">{title}</span>
+            </div>
+            <div class="help-step-body">{body}</div>
+        </div>""", unsafe_allow_html=True)
+
+    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+
+    # ── 탭별 기능 소개 ──
+    st.markdown("### 📑 탭별 기능 소개")
+    c1, c2, c3, c4 = st.columns(4)
+    tab_info = [
+        (c1, "#3B82F6", "📊", "개요",
+         "선택 월의 핵심 KPI(예측/실수주/달성률/오차)와 브랜드별 비교 차트, 공급단 비중, 자동 분석 요약을 한눈에 확인"),
+        (c2, "#10B981", "📈", "월별 추이",
+         "브랜드 또는 시리즈별로 여러 달의 예측·실적 추이를 꺾은선 차트로 비교. 달성률 변화 추이도 함께 확인 가능"),
+        (c3, "#F59E0B", "🔎", "시리즈 분석",
+         "시리즈별 예측·실수주·차이량을 Top N으로 정렬해 수평 막대차트로 표시. 달성률 구간 분포와 상세 표 제공"),
+        (c4, "#8B5CF6", "📋", "상세 데이터",
+         "품목 단위 전체 데이터 조회·검색·정렬. CSV 다운로드 및 오차 상위/하위 품목 동적 분석 카드 제공"),
+    ]
+    for col, color, icon, name, desc in tab_info:
+        with col:
+            st.markdown(f"""
+            <div class="help-tab-card" style="border-top-color:{color}">
+                <div class="help-tab-icon">{icon}</div>
+                <div class="help-tab-name">{name}</div>
+                <div class="help-tab-desc">{desc}</div>
+            </div>""", unsafe_allow_html=True)
+
+    st.markdown("<div style='height:24px'></div>", unsafe_allow_html=True)
+
+    # ── FAQ ──
+    st.markdown("### ❓ 자주 묻는 질문")
+    col_faq1, col_faq2 = st.columns(2)
+
+    with col_faq1:
+        st.markdown("""
+        <div class='help-faq-q'>Q. 데이터 파일은 어디에 넣어야 하나요?</div>
+        <div class='help-faq-a'>앱 파일(app.py)과 같은 폴더에 <b>forecast_data.csv</b>와 <b>actual_data.csv</b>를 넣으면 자동으로 불러옵니다. 파일이 없으면 샘플 데이터로 실행됩니다.</div>
+
+        <div class='help-faq-q'>Q. 달성률은 어떻게 계산되나요?</div>
+        <div class='help-faq-a'><b>달성률(%) = 실수주 ÷ 예측수요 × 100</b><br>
+        100% 이상이면 초과달성(초록), 90~100%는 근접(노랑), 90% 미만은 미달(빨강)으로 표시됩니다.</div>
+
+        <div class='help-faq-q'>Q. 브랜드를 여러 개 선택할 수 있나요?</div>
+        <div class='help-faq-a'>네! 사이드바 브랜드 필터에서 원하는 브랜드를 다중 선택할 수 있습니다. 선택을 모두 해제하면 전체 브랜드가 표시됩니다.</div>
+        """, unsafe_allow_html=True)
+
+    with col_faq2:
+        st.markdown("""
+        <div class='help-faq-q'>Q. AI 챗봇이 답변을 못하면 어떻게 되나요?</div>
+        <div class='help-faq-a'>Gemini API 키가 없거나 한도 초과 시에도 앱의 모든 차트와 분석 기능은 정상 동작합니다. 챗봇 기능만 비활성화됩니다.</div>
+
+        <div class='help-faq-q'>Q. CSV 다운로드는 어디서 하나요?</div>
+        <div class='help-faq-a'><b>📋 상세 데이터</b> 탭 하단의 <b>⬇️ CSV 다운로드</b> 버튼을 클릭하면 현재 필터·검색 조건이 적용된 데이터를 저장할 수 있습니다.</div>
+
+        <div class='help-faq-q'>Q. 탭 순서를 바꿀 수 있나요?</div>
+        <div class='help-faq-a'>네! 상단 탭을 <b>드래그 앤 드롭</b>으로 원하는 순서로 재배치할 수 있습니다.</div>
+        """, unsafe_allow_html=True)
+
+    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+
+    # ── 팁 박스 ──
+    st.markdown("""
+    <div class="help-tip-box">
+        💡 <b>사용 팁</b><br>
+        &nbsp;&nbsp;① 사이드바 필터를 바꾸면 <b>모든 탭이 실시간으로 업데이트</b>됩니다.<br>
+        &nbsp;&nbsp;② AI 챗봇에 <b>"이번 달 요약해줘"</b>라고 물어보면 현재 필터 기준 데이터를 자동 분석해줍니다.<br>
+        &nbsp;&nbsp;③ 시리즈 분석 탭의 <b>Top N 슬라이더</b>로 표시 품목 수를 조절할 수 있습니다.<br>
+        &nbsp;&nbsp;④ 상세 데이터 탭의 <b>검색창</b>에 콤보코드·시리즈명·품목명을 입력해 빠르게 찾을 수 있습니다.
+    </div>
+    """, unsafe_allow_html=True)
