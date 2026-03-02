@@ -267,6 +267,125 @@ def apply_filters(df, ym=None, brands=None, supply=None):
 def fmt_int(v): return f"{int(v):,}"
 def fmt_pct(v): return f"{v:.1f}%"
 
+# ══════════════════════════════════════════════
+#  규칙 기반 챗봇 엔진 (API 키 없을 때 fallback)
+# ══════════════════════════════════════════════
+def rule_based_reply(question: str, df: pd.DataFrame, sel_ym, sel_brands, sel_supply) -> str:
+    """키워드 매칭 → 데이터 집계 기반 자동 답변"""
+    if df.empty:
+        return "현재 선택된 데이터가 없습니다. 사이드바 필터를 확인해주세요."
+
+    q = question.lower()
+
+    # ── 공통 집계 ──
+    t_f  = int(df["forecast"].sum())
+    t_a  = int(df["actual"].sum())
+    t_r  = round(t_a / t_f * 100, 1) if t_f > 0 else 0.0
+    t_d  = t_a - t_f
+    month = sel_ym.replace("-", "년 ") + "월"
+
+    brand_agg = df.groupby("brand").agg(f=("forecast","sum"), a=("actual","sum")).reset_index()
+    brand_agg["r"] = np.where(brand_agg["f"]>0, (brand_agg["a"]/brand_agg["f"]*100).round(1), 0)
+
+    sr_agg = df.groupby("series").agg(f=("forecast","sum"), a=("actual","sum")).reset_index()
+    sr_agg["r"]   = np.where(sr_agg["f"]>0, (sr_agg["a"]/sr_agg["f"]*100).round(1), 0)
+    sr_agg["err"] = (sr_agg["a"] - sr_agg["f"]).abs()
+
+    # ── 달성률 / 전체 현황 ──
+    if any(k in q for k in ["달성률","달성","현황","전체","요약","분석","overview"]):
+        status = "✅ 초과달성" if t_r >= 100 else "⚠️ 근접" if t_r >= 90 else "❌ 미달"
+        best  = brand_agg.loc[brand_agg["r"].idxmax()]
+        worst = brand_agg.loc[brand_agg["r"].idxmin()]
+        sign  = "+" if t_d >= 0 else ""
+        return (
+            f"**{month} 전체 달성률 분석** {status}\n\n"
+            f"- 예측: **{t_f:,}** / 실수주: **{t_a:,}**\n"
+            f"- 달성률: **{t_r:.1f}%** (오차 {sign}{t_d:,})\n\n"
+            f"**브랜드별 달성률**\n"
+            + "\n".join([f"- {r['brand']}: {r['r']:.1f}%" for _, r in brand_agg.sort_values('r', ascending=False).iterrows()])
+            + f"\n\n🏆 최고: **{best['brand']}** ({best['r']:.1f}%) · 최저: **{worst['brand']}** ({worst['r']:.1f}%)"
+        )
+
+    # ── 오차 분석 ──
+    if any(k in q for k in ["오차","차이","오류","error","틀린","차이량"]):
+        top5 = sr_agg.nlargest(5, "err")
+        lines = "\n".join([f"- **{r['series']}**: 오차 {r['err']:,} (달성률 {r['r']:.1f}%)" for _, r in top5.iterrows()])
+        return f"**{month} 오차 상위 5개 시리즈**\n\n{lines}\n\n💡 오차가 큰 품목은 수요 변동성이 높거나 예측 모델 보정이 필요합니다."
+
+    # ── 과소예측 ──
+    if any(k in q for k in ["과소","미달","부족","under","낮은","낮다"]):
+        under = sr_agg[sr_agg["r"] < 90].sort_values("r")
+        if under.empty:
+            return f"**{month}** 과소예측(달성률 90% 미만) 시리즈가 없습니다. 예측 정확도가 양호합니다! ✅"
+        lines = "\n".join([f"- **{r['series']}**: {r['r']:.1f}% (실수주 {r['a']:,} / 예측 {r['f']:,})" for _, r in under.iterrows()])
+        return (
+            f"**과소예측 시리즈 ({len(under)}개)**\n\n{lines}\n\n"
+            "💡 **개선 방안**\n"
+            "- 최근 3개월 실적 트렌드를 예측 모델에 반영\n"
+            "- 해당 시리즈 영업팀과 수요 급증 원인 파악\n"
+            "- 다음 주기 예측 시 상향 보정 검토"
+        )
+
+    # ── 과대예측 ──
+    if any(k in q for k in ["과대","초과","over","높은","높다","재고"]):
+        over = sr_agg[sr_agg["r"] > 110].sort_values("r", ascending=False)
+        if over.empty:
+            return f"**{month}** 과대예측(달성률 110% 초과) 시리즈가 없습니다. ✅"
+        lines = "\n".join([f"- **{r['series']}**: {r['r']:.1f}% (실수주 {r['a']:,} / 예측 {r['f']:,})" for _, r in over.iterrows()])
+        return (
+            f"**과대예측 시리즈 ({len(over)}개)**\n\n{lines}\n\n"
+            "💡 **권장 조치**\n"
+            "- 잉여 재고 현황 점검 및 할인 프로모션 검토\n"
+            "- 예측 모델의 계절성·이벤트 반영 여부 확인\n"
+            "- 다음 주기 예측 시 하향 보정 검토"
+        )
+
+    # ── 브랜드 비교 ──
+    if any(k in q for k in ["브랜드","brand","비교","compare"]):
+        rows_str = "\n".join([
+            f"- **{r['brand']}**: 예측 {r['f']:,} / 실수주 {r['a']:,} / 달성률 {r['r']:.1f}%"
+            for _, r in brand_agg.sort_values("r", ascending=False).iterrows()
+        ])
+        best  = brand_agg.loc[brand_agg["r"].idxmax()]
+        worst = brand_agg.loc[brand_agg["r"].idxmin()]
+        return (
+            f"**{month} 브랜드별 성과 비교**\n\n{rows_str}\n\n"
+            f"🏆 최고 성과: **{best['brand']}** ({best['r']:.1f}%)\n"
+            f"⚠️ 개선 필요: **{worst['brand']}** ({worst['r']:.1f}%)"
+        )
+
+    # ── 다음달 / 전략 ──
+    if any(k in q for k in ["다음","전략","개선","strategy","next","제안","추천"]):
+        top3_err  = sr_agg.nlargest(3, "err")["series"].tolist()
+        under_cnt = len(sr_agg[sr_agg["r"] < 90])
+        over_cnt  = len(sr_agg[sr_agg["r"] > 110])
+        return (
+            f"**{month} 분석 기반 다음 주기 전략 제안**\n\n"
+            f"📊 현황 요약: 달성률 **{t_r:.1f}%**, 과소예측 {under_cnt}건, 과대예측 {over_cnt}건\n\n"
+            f"**🎯 우선 조치 항목**\n"
+            f"1. 오차 상위 시리즈 집중 관리: {', '.join(top3_err)}\n"
+            f"2. 과소예측 {under_cnt}개 시리즈 → 예측 상향 보정\n"
+            f"3. 과대예측 {over_cnt}개 시리즈 → 재고 소진 계획 수립\n"
+            f"4. 브랜드별 달성률 편차 원인 분석 후 채널 전략 수정"
+        )
+
+    # ── 재고 우선순위 ──
+    if any(k in q for k in ["재고","우선순위","priority","stock","긴급","점검"]):
+        urgent = sr_agg[sr_agg["r"] < 80].sort_values("r").head(5)
+        if urgent.empty:
+            return f"**{month}** 달성률 80% 미만 긴급 점검 시리즈가 없습니다. ✅"
+        lines = "\n".join([f"- **{r['series']}** (달성률 {r['r']:.1f}%, 오차 {r['err']:,})" for _, r in urgent.iterrows()])
+        return f"**긴급 재고 점검 우선순위 (달성률 80% 미만)**\n\n{lines}\n\n💡 위 품목 납기·반품 현황을 즉시 확인하세요."
+
+    # ── fallback ──
+    return (
+        f"**{month} 기준 현황**\n\n"
+        f"- 달성률: **{t_r:.1f}%** | 예측 {t_f:,} → 실수주 {t_a:,}\n\n"
+        "다음 키워드로 질문해보세요:\n"
+        "📊 달성률 · ⚠️ 오차 · 🔻 과소예측 · 🔺 과대예측 · 🏷️ 브랜드 · 📈 전략 · 💡 재고"
+    )
+
+
 def build_context(df, sel_ym, sel_brands, sel_supply):
     if df.empty: return "현재 선택된 데이터가 없습니다."
     t_f = int(df["forecast"].sum()); t_a = int(df["actual"].sum())
@@ -332,9 +451,9 @@ with st.sidebar:
     st.markdown("---")
 
     # API 키 입력
-    st.markdown('<div style="font-size:13px;font-weight:700;color:#93B4D8;margin-bottom:6px;">🔑 Claude API Key</div>', unsafe_allow_html=True)
-    api_key = st.text_input("API Key", type="password", placeholder="sk-ant-...",
-                            label_visibility="collapsed", key="claude_api_key")
+    st.markdown('<div style="font-size:13px;font-weight:700;color:#93B4D8;margin-bottom:6px;">🔑 Gemini API Key</div>', unsafe_allow_html=True)
+    api_key = st.text_input("API Key", type="password", placeholder="AIza...",
+                            label_visibility="collapsed", key="gemini_api_key")
     if api_key:
         st.markdown('<div style="font-size:11px;color:#34D399;margin-bottom:8px;">✅ API 키 등록됨</div>', unsafe_allow_html=True)
     else:
@@ -344,7 +463,7 @@ with st.sidebar:
     st.markdown("""
     <div class="sb-chat-header">
         <div class="sb-chat-header-title">🤖 AI 분석 어시스턴트</div>
-        <div class="sb-chat-header-sub">현재 대시보드 데이터 기반 질의응답</div>
+        <div class="sb-chat-header-sub">현재 대시보드 데이터 기반 질의응답 · Gemini 2.0 Flash</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -404,35 +523,48 @@ with st.sidebar:
 
     if prompt_sb:
         if not api_key:
-            st.warning("⚠️ API 키를 먼저 입력하세요.")
+            st.warning("⚠️ Gemini API 키를 먼저 입력하세요.")
         else:
-            st.session_state.sb_messages.append({"role":"user","content":prompt_sb})
+            st.session_state.sb_messages.append({"role": "user", "content": prompt_sb})
             context_text = build_context(df_chat, sel_ym, sel_brands, sel_supply)
-            system_prompt = f"""당신은 수요예측 대시보드 전문 분석 어시스턴트입니다.
+            system_instruction = f"""당신은 수요예측 대시보드 전문 분석 어시스턴트입니다.
 아래 데이터를 기반으로 간결하고 실용적인 인사이트를 한국어로 제공하세요.
 사이드바에 표시되므로 답변은 반드시 300자 이내로 핵심만 작성하세요.
 수치는 구체적으로 인용하고, 실행 가능한 조치를 1~3개 제시하세요.
 
 {context_text}"""
 
-            api_messages = [{"role":m["role"],"content":m["content"]} for m in st.session_state.sb_messages]
-
-            import anthropic
+            from google import genai
+            from google.genai import types as gtypes
             try:
-                client = anthropic.Anthropic(api_key=api_key)
-                response = client.messages.create(
-                    model="claude-sonnet-4-20250514",
-                    max_tokens=400,
-                    system=system_prompt,
-                    messages=api_messages,
+                client = genai.Client(api_key=api_key)
+
+                # 멀티턴 히스토리 변환 (Gemini 형식: user/model)
+                history = []
+                for m in st.session_state.sb_messages[:-1]:  # 마지막 user 메시지 제외
+                    role = "user" if m["role"] == "user" else "model"
+                    history.append(gtypes.Content(role=role, parts=[gtypes.Part(text=m["content"])]))
+
+                response = client.models.generate_content(
+                    model="gemini-2.0-flash",
+                    contents=history + [gtypes.Content(role="user", parts=[gtypes.Part(text=prompt_sb)])],
+                    config=gtypes.GenerateContentConfig(
+                        system_instruction=system_instruction,
+                        max_output_tokens=400,
+                        temperature=0.7,
+                    ),
                 )
-                reply = response.content[0].text
-                st.session_state.sb_messages.append({"role":"assistant","content":reply})
+                reply = response.text
+                st.session_state.sb_messages.append({"role": "assistant", "content": reply})
                 st.rerun()
-            except anthropic.AuthenticationError:
-                st.error("❌ API 키가 올바르지 않습니다.")
             except Exception as e:
-                st.error(f"❌ 오류: {str(e)}")
+                err = str(e)
+                if "API_KEY_INVALID" in err or "API key" in err.lower():
+                    st.error("❌ API 키가 올바르지 않습니다. Google AI Studio에서 확인하세요.")
+                elif "quota" in err.lower() or "429" in err:
+                    st.error("⚠️ 무료 사용량 한도 초과. 잠시 후 다시 시도하세요.")
+                else:
+                    st.error(f"❌ 오류: {err}")
 
     # 대화 초기화
     if st.session_state.sb_messages:
