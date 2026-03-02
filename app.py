@@ -259,6 +259,7 @@ def load_data():
             df['supply'] = df['supply'].apply(lambda v: v if v in _valid else '<NA>')
 
     f = f.dropna(subset=['series','brand','combo'])
+    f = f[~f['series'].astype(str).str.strip().isin(['nan','NaN','None',''])]
     f = f[~f['series'].astype(str).str.isnumeric()]
     f = f[f['series'].astype(str).str.len() >= 2]
     brand_values = set(f['brand'].dropna().astype(str).str.strip().unique())
