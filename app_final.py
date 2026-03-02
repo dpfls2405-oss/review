@@ -235,6 +235,8 @@ def load_data():
     for df in [f, a]:
         for col in df.select_dtypes(include=['object','string']).columns:
             df[col] = df[col].astype(str).str.strip()
+        if 'brand' in df.columns:
+            df['brand'] = df['brand'].replace({'알로소': '시디즈'})
         if 'supply' in df.columns:
             SUPPLY_NORM = {
                 '시디즈':      '시디즈(평택)', '의자내작':    '시디즈(평택)',
@@ -605,13 +607,7 @@ with st.sidebar:
     t_r_sb  = round(t_a_sb/t_f_sb*100,1)    if t_f_sb>0 else 0.0
     rate_color_sb = "#34D399" if t_r_sb>=100 else "#F87171"
 
-    # 현재 컨텍스트 한 줄 요약
-    st.markdown(f"""<div style="font-size:11px;color:#64748B;background:#1C2B3F;border-radius:7px;
-        padding:7px 10px;margin-bottom:8px;line-height:1.7;">
-        📅 {sel_ym} &nbsp;·&nbsp; 예측 <b style="color:#93C5FD">{t_f_sb:,}</b>
-        &nbsp;/&nbsp; 실수주 <b style="color:#86EFAC">{t_a_sb:,}</b>
-        &nbsp;/&nbsp; 달성률 <b style="color:{rate_color_sb}">{t_r_sb:.1f}%</b>
-    </div>""", unsafe_allow_html=True)
+
 
     # 빠른 질문 버튼 (2열 그리드)
     quick_qs = [
@@ -843,6 +839,11 @@ with tab1:
     with col_r:
         st.markdown('<div class="section-card"><div class="section-title">브랜드별 달성률</div>', unsafe_allow_html=True)
         bar_colors=["#22C55E" if v>=95 else "#F59E0B" if v>=80 else "#EF4444" for v in brand_agg["달성률"]]
+        st.markdown('''<div style="display:flex;gap:16px;margin-bottom:8px;font-size:12px;font-weight:600;">
+            <span style="display:flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;border-radius:3px;background:#22C55E;display:inline-block;"></span> 95% 이상 (목표 달성)</span>
+            <span style="display:flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;border-radius:3px;background:#F59E0B;display:inline-block;"></span> 80~95% (주의)</span>
+            <span style="display:flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;border-radius:3px;background:#EF4444;display:inline-block;"></span> 80% 미만 (미달)</span>
+        </div>''', unsafe_allow_html=True)
         fig_rate=go.Figure(go.Bar(x=brand_agg["달성률"],y=brand_agg["brand"],orientation="h",marker_color=bar_colors,text=[f"{v:.1f}%" for v in brand_agg["달성률"]],textposition="outside"))
         fig_rate.add_vline(x=100,line_dash="dot",line_color="#94A3B8",annotation_text="100%",annotation_font_size=13)
         fig_rate.update_layout(template="plotly_white",height=320,margin=dict(l=0,r=50,t=10,b=0),font=dict(size=14),xaxis=dict(range=[0,max(135,brand_agg["달성률"].max()+20)]),yaxis=dict(tickfont=dict(size=15,color="#0F172A")))
