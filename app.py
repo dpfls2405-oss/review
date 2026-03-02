@@ -661,36 +661,56 @@ with st.sidebar:
 
 {context_text}"""
 
-            try:
+            import time
+
+            def call_gemini_with_retry(api_key, system_instruction, history, prompt, max_retries=3):
+                """지수 백오프(Exponential Backoff) 재시도 로직"""
                 genai.configure(api_key=api_key)
                 model = genai.GenerativeModel(
                     model_name="gemini-2.0-flash",
                     system_instruction=system_instruction,
                 )
-
-                # 멀티턴 히스토리 변환 (Gemini 형식: user/model)
-                history = []
-                for m in st.session_state.sb_messages[:-1]:  # 마지막 user 메시지 제외
-                    role = "user" if m["role"] == "user" else "model"
-                    history.append({"role": role, "parts": [m["content"]]})
-
                 chat = model.start_chat(history=history)
-                response = chat.send_message(
-                    prompt_sb,
-                    generation_config=genai.types.GenerationConfig(
-                        max_output_tokens=400,
-                        temperature=0.7,
-                    ),
+                for attempt in range(max_retries):
+                    try:
+                        response = chat.send_message(
+                            prompt,
+                            generation_config=genai.types.GenerationConfig(
+                                max_output_tokens=400,
+                                temperature=0.7,
+                            ),
+                        )
+                        return response.text, None
+                    except Exception as e:
+                        err = str(e)
+                        is_rate_limit = "quota" in err.lower() or "429" in err or "RESOURCE_EXHAUSTED" in err
+                        if is_rate_limit and attempt < max_retries - 1:
+                            wait_sec = 2 ** attempt  # 1초 → 2초 → 4초
+                            time.sleep(wait_sec)
+                            continue
+                        return None, err
+                return None, "최대 재시도 횟수 초과"
+
+            # 멀티턴 히스토리 변환
+            history = []
+            for m in st.session_state.sb_messages[:-1]:
+                role = "user" if m["role"] == "user" else "model"
+                history.append({"role": role, "parts": [m["content"]]})
+
+            # 로딩 스피너 표시 후 호출
+            with st.spinner("🤖 분석 중..."):
+                reply, err = call_gemini_with_retry(
+                    api_key, system_instruction, history, prompt_sb
                 )
-                reply = response.text
+
+            if reply:
                 st.session_state.sb_messages.append({"role": "assistant", "content": reply})
                 st.rerun()
-            except Exception as e:
-                err = str(e)
+            else:
                 if "API_KEY_INVALID" in err or "api key" in err.lower():
                     st.error("❌ API 키가 올바르지 않습니다. Google AI Studio에서 확인하세요.")
-                elif "quota" in err.lower() or "429" in err:
-                    st.error("⚠️ 무료 사용량 한도 초과. 잠시 후 다시 시도하세요.")
+                elif "quota" in err.lower() or "429" in err or "RESOURCE_EXHAUSTED" in err:
+                    st.warning("⚠️ API 사용량 한도 초과입니다. 잠시 후 자동 재시도했지만 실패했습니다.\n\n💡 1분 정도 기다린 후 다시 질문해 주세요.")
                 else:
                     st.error(f"❌ 오류: {err}")
 
