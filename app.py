@@ -202,11 +202,30 @@ p { font-size:15px !important; }
 # ══════════════════════════════════════════════
 #  데이터 로드
 # ══════════════════════════════════════════════
+def _csv_mtime():
+    """파일 수정시각 기반 캐시 키 — csv 변경 시 자동 갱신"""
+    _candidates = [
+        os.path.dirname(os.path.abspath(__file__)),
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "outputs"),
+        "/mnt/user-data/outputs",
+    ]
+    def _find(fname):
+        for d in _candidates:
+            p = os.path.join(d, fname)
+            if os.path.exists(p):
+                return p
+        return None
+    t = 0
+    for fname in ["forecast_data.csv", "actual_data.csv"]:
+        p = _find(fname)
+        if p:
+            t += int(os.path.getmtime(p))
+    return t
+
 @st.cache_data(show_spinner=False)
-def load_data():
+def load_data(_mtime=0):
     try:
         _dir = os.path.dirname(os.path.abspath(__file__))
-        # outputs 폴더 우선 탐색 → 없으면 동일 디렉터리
         _candidates = [
             _dir,
             os.path.join(_dir, "outputs"),
@@ -290,7 +309,7 @@ def load_data():
     f = f[~f['series'].astype(str).isin(brand_values)]
     return f, a
 
-f_df, a_df = load_data()
+f_df, a_df = load_data(_mtime=_csv_mtime())
 # forecast에만 있는 경우: actual=0, actual에만 있는 경우: forecast=0
 _a_cols = ["ym","combo","brand","series","name","supply","actual"]
 _a_for_merge = a_df[[c for c in _a_cols if c in a_df.columns]].copy()
@@ -560,13 +579,9 @@ with st.sidebar:
                          horizontal=True, label_visibility="collapsed")
     st.markdown("<div style='height:2px'></div>", unsafe_allow_html=True)
 
-    # forecast가 있거나 actual이 있는 월 모두 포함 (현재 기준 과거월)
-    import datetime as _dt
-    _now_ym = _dt.datetime.now().strftime("%Y-%m")
-    _yms_with_actual   = set(mg_all[mg_all["actual"]   > 0]["ym"].unique())
-    _yms_with_forecast = set(mg_all[mg_all["forecast"] > 0]["ym"].unique())
-    _yms_past_forecast = {y for y in _yms_with_forecast if y <= _now_ym}
-    ym_options      = sorted(_yms_with_actual | _yms_past_forecast)
+    # actual 실적이 하나라도 있는 월만 선택 가능 (forecast만 있는 미래/과거월 제외)
+    _yms_with_actual = set(mg_all[mg_all["actual"] > 0]["ym"].unique())
+    ym_options      = sorted(_yms_with_actual)
     ym_options_desc = list(reversed(ym_options))
 
     sel_ym       = None
