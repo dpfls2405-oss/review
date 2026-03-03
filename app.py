@@ -202,12 +202,24 @@ p { font-size:15px !important; }
 # ══════════════════════════════════════════════
 #  데이터 로드
 # ══════════════════════════════════════════════
-@st.cache_data
+@st.cache_data(show_spinner=False)
 def load_data():
     try:
         _dir = os.path.dirname(os.path.abspath(__file__))
-        f = pd.read_csv(os.path.join(_dir, "forecast_data.csv"), dtype={"combo": str})
-        a = pd.read_csv(os.path.join(_dir, "actual_data.csv"),   dtype={"combo": str})
+        # outputs 폴더 우선 탐색 → 없으면 동일 디렉터리
+        _candidates = [
+            _dir,
+            os.path.join(_dir, "outputs"),
+            "/mnt/user-data/outputs",
+        ]
+        def _find(fname):
+            for d in _candidates:
+                p = os.path.join(d, fname)
+                if os.path.exists(p):
+                    return p
+            raise FileNotFoundError(fname)
+        f = pd.read_csv(_find("forecast_data.csv"), dtype={"combo": str})
+        a = pd.read_csv(_find("actual_data.csv"),   dtype={"combo": str})
     except Exception:
         np.random.seed(7)
         dates  = ["2025-06","2025-07","2025-08","2025-10",
@@ -491,9 +503,7 @@ with st.sidebar:
 
     # ── 조회 모드 ──
     # actual 실적이 하나라도 있는 월만 선택 가능하도록 필터링
-    _yms_with_actual = set(mg_all[mg_all["actual"] > 0]["ym"].unique())
-    ym_options = sorted(_yms_with_actual)               # 오래된 순 정렬
-    ym_options_desc = list(reversed(ym_options))        # 최신순 (selectbox용)
+
 
     # 라디오 버튼 커스텀 스타일 (사이드바 전용 - 가로 컴팩트)
     st.markdown("""
@@ -549,6 +559,15 @@ with st.sidebar:
     view_mode = st.radio("조회 방식", ["단일 월", "기간 범위"],
                          horizontal=True, label_visibility="collapsed")
     st.markdown("<div style='height:2px'></div>", unsafe_allow_html=True)
+
+    # forecast가 있거나 actual이 있는 월 모두 포함 (현재 기준 과거월)
+    import datetime as _dt
+    _now_ym = _dt.datetime.now().strftime("%Y-%m")
+    _yms_with_actual   = set(mg_all[mg_all["actual"]   > 0]["ym"].unique())
+    _yms_with_forecast = set(mg_all[mg_all["forecast"] > 0]["ym"].unique())
+    _yms_past_forecast = {y for y in _yms_with_forecast if y <= _now_ym}
+    ym_options      = sorted(_yms_with_actual | _yms_past_forecast)
+    ym_options_desc = list(reversed(ym_options))
 
     sel_ym       = None
     sel_ym_range = None
