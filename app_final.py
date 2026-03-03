@@ -1,4 +1,5 @@
 import streamlit as st
+import os
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
@@ -201,11 +202,43 @@ p { font-size:15px !important; }
 # ══════════════════════════════════════════════
 #  데이터 로드
 # ══════════════════════════════════════════════
-@st.cache_data
-def load_data():
+def _csv_mtime():
+    """파일 수정시각 기반 캐시 키 — csv 변경 시 자동 갱신"""
+    _candidates = [
+        os.path.dirname(os.path.abspath(__file__)),
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "outputs"),
+        "/mnt/user-data/outputs",
+    ]
+    def _find(fname):
+        for d in _candidates:
+            p = os.path.join(d, fname)
+            if os.path.exists(p):
+                return p
+        return None
+    t = 0
+    for fname in ["forecast_data.csv", "actual_data.csv"]:
+        p = _find(fname)
+        if p:
+            t += int(os.path.getmtime(p))
+    return t
+
+@st.cache_data(show_spinner=False)
+def load_data(_mtime=0):
     try:
-        f = pd.read_csv("forecast_data.csv", dtype={"combo": str})
-        a = pd.read_csv("actual_data.csv",   dtype={"combo": str})
+        _dir = os.path.dirname(os.path.abspath(__file__))
+        _candidates = [
+            _dir,
+            os.path.join(_dir, "outputs"),
+            "/mnt/user-data/outputs",
+        ]
+        def _find(fname):
+            for d in _candidates:
+                p = os.path.join(d, fname)
+                if os.path.exists(p):
+                    return p
+            raise FileNotFoundError(fname)
+        f = pd.read_csv(_find("forecast_data.csv"), dtype={"combo": str})
+        a = pd.read_csv(_find("actual_data.csv"),   dtype={"combo": str})
     except Exception:
         np.random.seed(7)
         dates  = ["2025-06","2025-07","2025-08","2025-10",
@@ -276,8 +309,26 @@ def load_data():
     f = f[~f['series'].astype(str).isin(brand_values)]
     return f, a
 
-f_df, a_df = load_data()
-mg_all = pd.merge(f_df, a_df[["ym","combo","actual"]], on=["ym","combo"], how="left")
+f_df, a_df = load_data(_mtime=_csv_mtime())
+# forecast에만 있는 경우: actual=0, actual에만 있는 경우: forecast=0
+_a_cols = ["ym","combo","brand","series","name","supply","actual"]
+_a_for_merge = a_df[[c for c in _a_cols if c in a_df.columns]].copy()
+_a_for_merge = _a_for_merge.rename(columns={"brand":"brand_a","series":"series_a","name":"name_a","supply":"supply_a"})
+
+mg_all = pd.merge(f_df, _a_for_merge[["ym","combo","actual"]], on=["ym","combo"], how="outer")
+
+# outer join으로 생긴 누락 컬럼 채우기 (actual에만 있는 행)
+for _col in ["brand","series","name","supply","forecast"]:
+    if _col not in mg_all.columns:
+        mg_all[_col] = pd.NA
+# actual에만 있는 행의 brand/series/name/supply를 actual_data에서 채움
+_a_meta = a_df[["ym","combo","brand","series","name","supply"]].drop_duplicates(["ym","combo"])
+mg_all = mg_all.merge(_a_meta, on=["ym","combo"], how="left", suffixes=("","_from_a"))
+for _col in ["brand","series","name","supply"]:
+    _col_a = _col + "_from_a"
+    if _col_a in mg_all.columns:
+        mg_all[_col] = mg_all[_col].fillna(mg_all[_col_a])
+        mg_all.drop(columns=[_col_a], inplace=True)
 mg_all["actual"]   = pd.to_numeric(mg_all["actual"],  errors='coerce').fillna(0).astype(int)
 mg_all["forecast"] = pd.to_numeric(mg_all["forecast"],errors='coerce').fillna(0).astype(int)
 mg_all["차이"]      = mg_all["actual"] - mg_all["forecast"]
@@ -470,8 +521,8 @@ with st.sidebar:
     st.markdown("---")
 
     # ── 조회 모드 ──
-    ym_options = sorted(mg_all["ym"].unique())          # 오래된 순 정렬
-    ym_options_desc = list(reversed(ym_options))        # 최신순 (selectbox용)
+    # actual 실적이 하나라도 있는 월만 선택 가능하도록 필터링
+
 
     # 라디오 버튼 커스텀 스타일 (사이드바 전용 - 가로 컴팩트)
     st.markdown("""
@@ -527,6 +578,11 @@ with st.sidebar:
     view_mode = st.radio("조회 방식", ["단일 월", "기간 범위"],
                          horizontal=True, label_visibility="collapsed")
     st.markdown("<div style='height:2px'></div>", unsafe_allow_html=True)
+
+    # actual 실적이 하나라도 있는 월만 선택 가능 (forecast만 있는 미래/과거월 제외)
+    _yms_with_actual = set(mg_all[mg_all["actual"] > 0]["ym"].unique())
+    ym_options      = sorted(_yms_with_actual)
+    ym_options_desc = list(reversed(ym_options))
 
     sel_ym       = None
     sel_ym_range = None
@@ -805,13 +861,42 @@ with tab1:
     if df_ov.empty:
         st.warning("선택한 조건에 해당하는 데이터가 없습니다."); st.stop()
 
-    t_f=int(df_ov["forecast"].sum()); t_a=int(df_ov["actual"].sum())
-    t_d=t_a-t_f; t_r=round(t_a/t_f*100,1) if t_f>0 else 0.0
     month_label = period_label  # 단일 월 또는 기간 범위 레이블
+
+    # ── 부품류 키워드 ──
+    _PARTS_KW = ['ACCESSORY','악세사리','이지리페어','EASY REPAIR','EASY-REPAIR',
+                 '부품','PARTS','PART','리페어','REPAIR','패브릭','FABRIC','가스','실린더']
+    def _is_parts(s):
+        s_up = str(s).upper()
+        return any(kw.upper() in s_up for kw in _PARTS_KW)
+
+    _parts_mask = df_ov["series"].apply(_is_parts)
+    df_ov_product = df_ov[~_parts_mask]   # 제품만
+    df_ov_parts   = df_ov[_parts_mask]    # 부품류만
+
+    # ── KPI 분류 드롭다운 ──
+    kpi_cat = st.selectbox(
+        "📦 예측 수요 분류",
+        ["전체", "제품 (부품류 제외)", "부품류"],
+        key="kpi_cat",
+        label_visibility="collapsed",
+    )
+    if kpi_cat == "제품 (부품류 제외)":
+        df_kpi = df_ov_product
+        kpi_label = "제품만"
+    elif kpi_cat == "부품류":
+        df_kpi = df_ov_parts
+        kpi_label = "부품류만"
+    else:
+        df_kpi = df_ov
+        kpi_label = "전체"
+
+    t_f=int(df_kpi["forecast"].sum()); t_a=int(df_kpi["actual"].sum())
+    t_d=t_a-t_f; t_r=round(t_a/t_f*100,1) if t_f>0 else 0.0
 
     c1,c2,c3,c4=st.columns(4)
     for col,color,label,value,sub in [
-        (c1,"#3B82F6","예측 수요",fmt_int(t_f),f"{month_label} 예측 합계"),
+        (c1,"#3B82F6","예측 수요",fmt_int(t_f),f"{month_label} · {kpi_label}"),
         (c2,"#10B981","실 수주",fmt_int(t_a),f"{month_label} 실수주 합계"),
         (c3,"#F59E0B" if t_d>=0 else "#EF4444","예측 오차",("▲ +" if t_d>=0 else "▼ ")+fmt_int(abs(t_d)),"실수주 − 예측"),
         (c4,"#8B5CF6","달성률",fmt_pct(t_r),"실수주 ÷ 예측 × 100"),
