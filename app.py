@@ -490,7 +490,9 @@ with st.sidebar:
     st.markdown("---")
 
     # ── 조회 모드 ──
-    ym_options = sorted(mg_all["ym"].unique())          # 오래된 순 정렬
+    # actual 실적이 하나라도 있는 월만 선택 가능하도록 필터링
+    _yms_with_actual = set(mg_all[mg_all["actual"] > 0]["ym"].unique())
+    ym_options = sorted(_yms_with_actual)               # 오래된 순 정렬
     ym_options_desc = list(reversed(ym_options))        # 최신순 (selectbox용)
 
     # 라디오 버튼 커스텀 스타일 (사이드바 전용 - 가로 컴팩트)
