@@ -579,9 +579,9 @@ with st.sidebar:
                          horizontal=True, label_visibility="collapsed")
     st.markdown("<div style='height:2px'></div>", unsafe_allow_html=True)
 
-    # actual 실적이 하나라도 있는 월만 선택 가능 (forecast만 있는 미래/과거월 제외)
-    _yms_with_actual = set(mg_all[mg_all["actual"] > 0]["ym"].unique())
-    ym_options      = sorted(_yms_with_actual)
+# forecast 또는 actual 데이터가 있는 모든 월 표시 (미래 예측월 포함)
+_yms_with_actual = set(mg_all["ym"].unique())
+ym_options      = sorted(_yms_with_actual)
     ym_options_desc = list(reversed(ym_options))
 
     sel_ym       = None
