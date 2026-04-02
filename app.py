@@ -1098,7 +1098,7 @@ with tab3:
                     if v>0: return "color:#059669;font-weight:600"
                     if v<0: return "color:#DC2626;font-weight:600"
                 return ""
-            styled=(disp.style.format({"예측수요":"{:,.0f}","실수주":"{:,.0f}","차이량(실-예측)":"{:+,.0f}","달성률(%)":"{:.1f}%"}).applymap(color_rate,subset=["달성률(%)"]).applymap(color_diff,subset=["차이량(실-예측)"]))
+            styled=(disp.style.format({"예측수요":"{:,.0f}","실수주":"{:,.0f}","차이량(실-예측)":"{:+,.0f}","달성률(%)":"{:.1f}%"}).map(color_rate,subset=["달성률(%)"]).map(color_diff,subset=["차이량(실-예측)"]))
             st.dataframe(styled,use_container_width=True,height=280)
             st.markdown('</div>', unsafe_allow_html=True)
 
@@ -1148,8 +1148,8 @@ with tab3:
                                          "차이":"차이(실-예측)","달성률(%)":"달성률(%)"})
                 .style
                 .format({"예측수요":"{:,.0f}","실수주":"{:,.0f}","차이(실-예측)":"{:+,.0f}","달성률(%)":"{:.1f}%"})
-                .applymap(cr, subset=["달성률(%)"])
-                .applymap(cd, subset=["차이(실-예측)"])
+                .map(cr, subset=["달성률(%)"])
+                .map(cd, subset=["차이(실-예측)"])
             )
             st.dataframe(styled_drill, use_container_width=True, height=min(400, 40+len(df_drill)*35))
         st.markdown('</div>', unsafe_allow_html=True)
@@ -1183,7 +1183,7 @@ with tab4:
         cols_show=["ym","brand","series","combo","name","supply","forecast","actual","차이","달성률(%)"]
         display_det=df_det2[cols_show].head(show_n).copy()
         display_det["supply"]=display_det["supply"].replace({"<NA>":"미분류"})
-        styled_det=(display_det.style.format({"forecast":"{:,.0f}","actual":"{:,.0f}","차이":"{:,.0f}","달성률(%)":"{:.1f}%"}).applymap(lambda v:"background:#FEE2E2;color:#991B1B" if isinstance(v,(int,float)) and v<0 else "",subset=["차이"]))
+        styled_det=(display_det.style.format({"forecast":"{:,.0f}","actual":"{:,.0f}","차이":"{:,.0f}","달성률(%)":"{:.1f}%"}).map(lambda v:"background:#FEE2E2;color:#991B1B" if isinstance(v,(int,float)) and v<0 else "",subset=["차이"]))
         st.dataframe(styled_det,use_container_width=True,height=400)
         csv_data=df_det2[cols_show].to_csv(index=False,encoding="utf-8-sig")
         st.download_button("⬇️  CSV 다운로드",data=csv_data,file_name=f"forecast_detail_{period_label.replace(' ','').replace('~','_')}.csv",mime="text/csv")
