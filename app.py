@@ -938,10 +938,7 @@ with tab1:
     col_pie,col_rep=st.columns([1,2])
     with col_pie:
         st.markdown('<div class="section-card"><div class="section-title">공급단별 예측 비중 (부품류 제외)</div>', unsafe_allow_html=True)
-        _PARTS_KEYWORDS = ['ACCESSORY','악세사리','이지리페어','EASY REPAIR','EASYREPAIR','부품','PARTS','PART','리페어','REPAIR','패브릭','FABRIC','가스','실린더']
-        _parts_mask = df_ov["series"].astype(str).str.upper().apply(
-            lambda s: any(kw.upper() in s for kw in _PARTS_KEYWORDS)
-        )
+        _parts_mask = df_ov["series"].apply(_is_parts)
         sup_agg=(df_ov[~_parts_mask & (df_ov["supply"] != "<NA>")].groupby("supply")["forecast"].sum().reset_index())
         if not sup_agg.empty:
             fig_pie=go.Figure(go.Pie(labels=sup_agg["supply"],values=sup_agg["forecast"],hole=0.5,textinfo="label+percent",textfont=dict(size=14),marker=dict(colors=["#60A5FA","#34D399","#FBBF24","#A78BFA"])))
