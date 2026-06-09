@@ -305,8 +305,7 @@ def load_data(_mtime=0):
     f = f[~f['series'].astype(str).str.strip().isin(['nan','NaN','None',''])]
     f = f[~f['series'].astype(str).str.isnumeric()]
     f = f[f['series'].astype(str).str.len() >= 2]
-    brand_values = set(f['brand'].dropna().astype(str).str.strip().unique())
-    f = f[~f['series'].astype(str).isin(brand_values)]
+    # ※ series == brand 필터 제거: 데스커 등 series명이 브랜드명과 동일한 정상 품목 보호
     return f, a
 
 f_df, a_df = load_data(_mtime=_csv_mtime())
